@@ -1,0 +1,24 @@
+{
+    "name": "crowdstar/exponential-backoff",
+    "description": "Prevent overloading an unavailable service by doubling the timeout each iteration.",
+    "homepage": "https://www.glu.com",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=7.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "~6.0",
+        "squizlabs/php_codesniffer": ">=2.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "CrowdStar\\Backoff\\": "src/CrowdStar/Backoff"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CrowdStar\\Tests\\Backoff\\": "tests/CrowdStar/Backoff/"
+        }
+    }
+}

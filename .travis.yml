@@ -1,0 +1,12 @@
+language: php
+
+php:
+  - 7.2
+  - 7.1
+
+before_install:
+  - composer update -n
+
+script:
+  - ./vendor/bin/phpcs -v --standard=PSR2 src tests/CrowdStar
+  - ./vendor/bin/phpunit
