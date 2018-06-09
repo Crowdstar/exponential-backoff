@@ -5,15 +5,16 @@
  * value back.
  */
 
+use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
-use CrowdStar\Backoff\Test;
+use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-require_once __DIR__ . '/helpers/Test.php';
 
-$result = (new ExponentialBackoff())->run(
-    function () {
-        return Test::getValueAfterThreeEmptyReturnValues();
+$helper = new Helper();
+$result = (new ExponentialBackoff(new EmptyValueCondition()))->run(
+    function () use ($helper) {
+        return $helper->getValueAfterThreeEmptyReturnValues();
     }
 );
 

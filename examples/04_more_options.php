@@ -4,30 +4,36 @@
  * Sample code to show how to define customized options when running exponential backoff.
  */
 
+use CrowdStar\Backoff\CustomizedCondition;
+use CrowdStar\Backoff\EmptyValueCondition;
+use CrowdStar\Backoff\ExceptionCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
-use CrowdStar\Backoff\Test;
+use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-require_once __DIR__ . '/helpers/Test.php';
 
-$backoff = new ExponentialBackoff();
+$helper  = new Helper();
+$backoff = new ExponentialBackoff(new EmptyValueCondition());
+$backoff = new ExponentialBackoff(new ExceptionCondition());
+$backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
+$backoff = new ExponentialBackoff(
+    new CustomizedCondition(
+        function ($result, ?Exception $e) use ($helper): bool {
+            return $helper->isLessThan3();
+        }
+    )
+);
+
 $backoff
     ->reset()
     ->setType(ExponentialBackoff::TYPE_SECONDS)
     ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
     ->setMaxAttempts(3)
-    ->setMaxAttempts(4)
-    ->setRetryCondition(
-        function ($result, ?Exception $e): bool {
-            return Test::lessThan3();
-        }
-    )
-    ->setRetryCondition(Exception::class)
-    ->setRetryCondition(null);
+    ->setMaxAttempts(4);
 
 $result = $backoff->run(
-    function () {
-        return Test::getValueAfterThreeEmptyReturnValues();
+    function () use ($helper) {
+        return $helper->getValue();
     }
 );
 

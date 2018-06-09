@@ -23,19 +23,6 @@ class ExponentialBackoff
     protected $type = self::TYPE_MICROSECONDS;
 
     /**
-     * Retry conditions:
-     *     1. If a Closure object:
-     *        retry when calling the Closure object returns false back.
-     *     2. If an non-empty string (an Exception class):
-     *        retry when the Exception thrown out is an instance of given Exception class.
-     *     3. If null or empty:
-     *        retry when return value is empty.
-     *
-     * @var null|string|Closure
-     */
-    protected $retryCondition;
-
-    /**
      * @var int
      */
     protected $maxAttempts = 4;
@@ -43,35 +30,40 @@ class ExponentialBackoff
     /**
      * @var int
      */
-    protected $currentAttempts;
+    protected $currentAttempts = 1;
+
+    /**
+     * @var AbstractRetryCondition
+     */
+    protected $retryCondition;
 
     /**
      * ExponentialBackoff constructor.
      *
-     * @param null|string|Closure $retryCondition
+     * @param AbstractRetryCondition $retryCondition
      */
-    public function __construct($retryCondition = null)
+    public function __construct(AbstractRetryCondition $retryCondition)
     {
-        $this->reset()->setRetryCondition($retryCondition);
+        $this->setRetryCondition($retryCondition);
     }
 
     /**
-     * @param Closure $op
+     * @param Closure $c
      * @param array ...$params
-     * @return mixed|null
+     * @return mixed
      * @throws Exception
      */
-    public function run(Closure $op, ...$params)
+    public function run(Closure $c, ...$params)
     {
         do {
             $result = $e = null;
 
             try {
-                $result = $op(...$params);
+                $result = $c(...$params);
             } catch (\Exception $e) {
-                // nothing to process here.
+                // Nothing to process here.
             }
-        } while ($this->cont($result, $e));
+        } while ($this->retry($result, $e));
 
         // If you still have an exception, throw it
         if (!empty($e)) {
@@ -82,7 +74,7 @@ class ExponentialBackoff
     }
 
     /**
-     * @return ExponentialBackoff
+     * @return $this
      */
     public function reset(): ExponentialBackoff
     {
@@ -101,30 +93,11 @@ class ExponentialBackoff
 
     /**
      * @param int $type
-     * @return ExponentialBackoff
+     * @return $this
      */
     public function setType(int $type): ExponentialBackoff
     {
         $this->type = $type;
-
-        return $this;
-    }
-
-    /**
-     * @return null|string|Closure
-     */
-    public function getRetryCondition()
-    {
-        return $this->retryCondition;
-    }
-
-    /**
-     * @param null|string|Closure $retryCondition
-     * @return ExponentialBackoff
-     */
-    public function setRetryCondition($retryCondition): ExponentialBackoff
-    {
-        $this->retryCondition = $retryCondition;
 
         return $this;
     }
@@ -139,7 +112,7 @@ class ExponentialBackoff
 
     /**
      * @param int $maxAttempts
-     * @return ExponentialBackoff
+     * @return $this
      */
     public function setMaxAttempts(int $maxAttempts): ExponentialBackoff
     {
@@ -157,11 +130,30 @@ class ExponentialBackoff
     }
 
     /**
-     * @return ExponentialBackoff
+     * @return $this
      */
     protected function increaseCurrentAttempts(): ExponentialBackoff
     {
         $this->currentAttempts++;
+
+        return $this;
+    }
+
+    /**
+     * @return AbstractRetryCondition
+     */
+    public function getRetryCondition()
+    {
+        return $this->retryCondition;
+    }
+
+    /**
+     * @param AbstractRetryCondition $retryCondition
+     * @return $this
+     */
+    public function setRetryCondition(AbstractRetryCondition $retryCondition): ExponentialBackoff
+    {
+        $this->retryCondition = $retryCondition;
 
         return $this;
     }
@@ -172,22 +164,11 @@ class ExponentialBackoff
      * @return bool
      * @throws Exception
      */
-    protected function cont($result, ?\Exception $e): bool
+    protected function retry($result, ?\Exception $e): bool
     {
         if ($this->getCurrentAttempts() <= $this->getMaxAttempts()) {
-            if ($this->getRetryCondition() instanceof Closure) {
-                if (!$this->getRetryCondition()($result, $e)) {
-                    return false;
-                }
-            } elseif ($this->getRetryCondition()) {
-                $exceptionClass = $this->getRetryCondition();
-                if (empty($e) || (!($e instanceof $exceptionClass))) {
-                    return false;
-                }
-            } else {
-                if (!empty($result)) {
-                    return false;
-                }
+            if ($this->getRetryCondition()->met($result, $e)) {
+                return false;
             }
 
             $this->sleep();

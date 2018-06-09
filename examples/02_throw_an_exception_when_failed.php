@@ -5,15 +5,19 @@
  * exception out.
  */
 
+use CrowdStar\Backoff\ExceptionCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
-use CrowdStar\Backoff\Test;
+use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
-require_once __DIR__ . '/helpers/Test.php';
 
-$result = (new ExponentialBackoff(Exception::class))->run(
-    function () {
-        return Test::getValueAfterThreeExceptions();
+// You may omit the first parameter "Exception::class" since it's the default value when not passed in:
+//     $backoff = new ExponentialBackoff(new ExceptionCondition());
+$backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
+$helper  = new Helper();
+$result  = $backoff->run(
+    function () use ($helper) {
+        return $helper->getValueAfterThreeExceptions();
     }
 );
 

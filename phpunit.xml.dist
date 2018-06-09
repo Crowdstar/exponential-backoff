@@ -3,4 +3,7 @@
     <testsuite name="default">
         <directory suffix="Test.php">tests/CrowdStar</directory>
     </testsuite>
+    <php>
+        <const name="UNDER_PHPUNIT" value="true"/>
+    </php>
 </phpunit>
