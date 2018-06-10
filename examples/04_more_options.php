@@ -19,13 +19,12 @@ $backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
 $backoff = new ExponentialBackoff(
     new CustomizedCondition(
         function ($result, ?Exception $e) use ($helper): bool {
-            return $helper->isLessThan3();
+            return $helper->reachExpectedAttempts();
         }
     )
 );
 
 $backoff
-    ->reset()
     ->setType(ExponentialBackoff::TYPE_SECONDS)
     ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
     ->setMaxAttempts(3)

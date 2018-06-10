@@ -6,6 +6,7 @@ use Exception;
 
 /**
  * Class EmptyValueCondition
+ * Do a retry if return value is empty.
  *
  * @package CrowdStar\Backoff
  */

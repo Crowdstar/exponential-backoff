@@ -17,7 +17,7 @@ $helper = new Helper();
 $backoff = new ExponentialBackoff(
     new CustomizedCondition(
         function ($result, ?Exception $e) use ($helper): bool {
-            return $helper->isLessThan3();
+            return $helper->reachExpectedAttempts();
         }
     )
 );

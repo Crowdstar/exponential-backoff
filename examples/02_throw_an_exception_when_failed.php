@@ -14,10 +14,10 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 // You may omit the first parameter "Exception::class" since it's the default value when not passed in:
 //     $backoff = new ExponentialBackoff(new ExceptionCondition());
 $backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
-$helper  = new Helper();
+$helper  = (new Helper())->setException(Exception::class);
 $result  = $backoff->run(
     function () use ($helper) {
-        return $helper->getValueAfterThreeExceptions();
+        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
     }
 );
 

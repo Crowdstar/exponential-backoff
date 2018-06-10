@@ -21,16 +21,17 @@ class ExponentialBackoffTest extends TestCase
 {
     /**
      * @return array
+     * @throws \CrowdStar\Backoff\Exception
      */
     public function dataFailuresWithEmptyValue(): array
     {
-        $helper = new Helper();
+        $helper = (new Helper())->setException(Exception::class);
         return [
             [
                 $helper,
                 new ExponentialBackoff(new EmptyValueCondition()),
                 function () use ($helper) {
-                    return $helper->getValueAfterThreeEmptyReturnValues();
+                    return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
                 },
                 'fetch a non-empty value after 3 failed attempts where empty values were returned.',
             ],
@@ -38,7 +39,7 @@ class ExponentialBackoffTest extends TestCase
                 $helper,
                 new ExponentialBackoff(new ExceptionCondition()),
                 function () use ($helper) {
-                    return $helper->getValueAfterThreeExceptions();
+                    return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
                 },
                 'fetch a value after 3 failed attempts where exceptions were thrown out.',
             ],
@@ -47,7 +48,7 @@ class ExponentialBackoffTest extends TestCase
                 new ExponentialBackoff(
                     new CustomizedCondition(
                         function ($result, ?Exception $e) use ($helper): bool {
-                            return $helper->isLessThan3();
+                            return $helper->reachExpectedAttempts();
                         }
                     )
                 ),
@@ -71,9 +72,9 @@ class ExponentialBackoffTest extends TestCase
     public function testFailuresWithEmptyValue(Helper $helper, ExponentialBackoff $backoff, Closure $c, string $message)
     {
         $helper->reset();
-        $this->assertSame(0, $helper->getCurrentIteration(), 'current iteration should be 0 (not yet started)');
+        $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
         $this->assertSame($helper->getValue(), $backoff->run($c), $message);
-        $this->assertSame(4, $helper->getCurrentIteration(), 'current iteration should be 4 (after 4 attempts)');
+        $this->assertSame(4, $backoff->getCurrentAttempts(), 'current iteration should be 4 (after 4 attempts)');
     }
 
     /**

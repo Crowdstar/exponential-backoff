@@ -7,6 +7,7 @@ use Exception;
 
 /**
  * Class CustomizedCondition
+ * Use self-defined function to determine if a retry is needed to do or not.
  *
  * @package CrowdStar\Backoff
  */
@@ -32,7 +33,7 @@ class CustomizedCondition extends AbstractRetryCondition
      */
     public function met($result, ?Exception $e): bool
     {
-        return !$this->getClosure()($result, $e);
+        return $this->getClosure()($result, $e);
     }
 
     /**

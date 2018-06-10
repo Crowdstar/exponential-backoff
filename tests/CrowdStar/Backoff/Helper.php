@@ -7,7 +7,7 @@ use Exception;
 /**
  * Class Helper.
  *
- * This is for demonstration purpose only. It's used by example scripts under folder /examples and unit tests.
+ * Used for unit tests and by sample PHP scripts under folder /examples.
  *
  * @package CrowdStar\Backoff
  */
@@ -16,18 +16,29 @@ class Helper
     const VALUE = 'Hello World!';
 
     /**
+     * Expected numbers of failed attempts before the value could be fetched.
      * @var int
      */
-    protected $currentIteration = 0;
+    protected $expectedFailedAttempts = 3;
 
     /**
-     * To return the value back only after 3 iterations; otherwise, return an empty string back instead.
-     *
-     * @return string Return an empty string back when current iteration is less than 3, otherwise return the value.
+     * @var int
      */
-    public function getValueAfterThreeEmptyReturnValues(): string
+    protected $currentAttempts = 1;
+
+    /**
+     * @var string
+     */
+    protected $exception;
+
+    /**
+     * To return an empty string back when not yet reached expected # of failed attempts, otherwise return the value.
+     *
+     * @return string
+     */
+    public function getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(): string
     {
-        if ($this->isLessThan3()) {
+        if (!$this->reachExpectedAttempts()) {
             return '';
         };
 
@@ -35,38 +46,46 @@ class Helper
     }
 
     /**
-     * To return the value back only after 3 iterations; otherwise, throw an exception instead.
+     * To throw an exception out when not yet reached expected # of failed attempts, otherwise return the value.
      *
      * @return string
-     * @throws Exception When current iteration is less than 3.
+     * @throws Exception
      */
-    public function getValueAfterThreeExceptions(): string
+    public function getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(): string
     {
-        if ($this->isLessThan3()) {
-            throw new Exception();
+        if (!$this->reachExpectedAttempts()) {
+            $exception = $this->getException();
+            throw new $exception('an exception thrown out from class \CrowdStar\Tests\Backoff\Helper');
         };
 
         return $this->getValue();
     }
 
     /**
-     * @return bool Return TRUE if current iteration is less than 3, otherwise return FALSE.
+     * Return TRUE if not yet reached expected # of failed attempts, otherwise return FALSE. This method will also
+     * increment the iterator by 1 every time when called.
+     *
+     * @return bool
      */
-    public function isLessThan3(): bool
+    public function reachExpectedAttempts(): bool
     {
         if (!defined('UNDER_PHPUNIT') || !UNDER_PHPUNIT) {
-            echo "current iteration is: ", $this->currentIteration, "\n";
+            echo "total # of attempts: ", $this->currentAttempts, "\n";
         }
 
-        return ($this->currentIteration++ < 3);
+        $reachExpectedAttempts = ($this->getCurrentAttempts() > $this->getExpectedFailedAttempts());
+        $this->increaseCurrentAttempts();
+
+        return $reachExpectedAttempts;
     }
 
     /**
      * @return $this
+     * @see AttemptsTrait::$currentAttempts
      */
     public function reset(): Helper
     {
-        $this->currentIteration = 0;
+        $this->currentAttempts = 1;
 
         return $this;
     }
@@ -82,18 +101,55 @@ class Helper
     /**
      * @return int
      */
-    public function getCurrentIteration(): int
+    public function getExpectedFailedAttempts(): int
     {
-        return $this->currentIteration;
+        return $this->expectedFailedAttempts;
     }
 
     /**
-     * @param int $currentIteration
+     * @param int $expectedFailedAttempts
      * @return $this
      */
-    public function setCurrentIteration(int $currentIteration): Helper
+    public function setExpectedFailedAttempts(int $expectedFailedAttempts): Helper
     {
-        $this->currentIteration = $currentIteration;
+        $this->expectedFailedAttempts = $expectedFailedAttempts;
+
+        return $this;
+    }
+
+    /**
+     * @return int
+     */
+    public function getCurrentAttempts(): int
+    {
+        return $this->currentAttempts;
+    }
+
+    /**
+     * @return $this
+     */
+    protected function increaseCurrentAttempts(): Helper
+    {
+        $this->currentAttempts++;
+
+        return $this;
+    }
+
+    /**
+     * @return string
+     */
+    public function getException(): string
+    {
+        return $this->exception;
+    }
+
+    /**
+     * @param string $exception
+     * @return $this
+     */
+    public function setException(string $exception): Helper
+    {
+        $this->exception = $exception;
 
         return $this;
     }

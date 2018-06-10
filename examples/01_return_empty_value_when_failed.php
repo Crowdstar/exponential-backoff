@@ -14,7 +14,7 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 $helper = new Helper();
 $result = (new ExponentialBackoff(new EmptyValueCondition()))->run(
     function () use ($helper) {
-        return $helper->getValueAfterThreeEmptyReturnValues();
+        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
     }
 );
 

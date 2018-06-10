@@ -74,16 +74,6 @@ class ExponentialBackoff
     }
 
     /**
-     * @return $this
-     */
-    public function reset(): ExponentialBackoff
-    {
-        $this->currentAttempts = 1;
-
-        return $this;
-    }
-
-    /**
      * @return int
      */
     public function getType(): int
@@ -112,10 +102,15 @@ class ExponentialBackoff
 
     /**
      * @param int $maxAttempts
-     * @return $this
+     * @return ExponentialBackoff
+     * @throws Exception
      */
     public function setMaxAttempts(int $maxAttempts): ExponentialBackoff
     {
+        if ($maxAttempts < 1) {
+            throw new Exception('maximum number of attempts must be at least 1');
+        }
+
         $this->maxAttempts = $maxAttempts;
 
         return $this;
@@ -166,7 +161,7 @@ class ExponentialBackoff
      */
     protected function retry($result, ?\Exception $e): bool
     {
-        if ($this->getCurrentAttempts() <= $this->getMaxAttempts()) {
+        if ($this->getCurrentAttempts() < $this->getMaxAttempts()) {
             if ($this->getRetryCondition()->met($result, $e)) {
                 return false;
             }

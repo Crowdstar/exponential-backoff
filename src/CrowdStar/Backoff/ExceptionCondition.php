@@ -2,10 +2,9 @@
 
 namespace CrowdStar\Backoff;
 
-use Exception;
-
 /**
  * Class ExceptionBasedCondition
+ * Do a retry if specified type of exception is thrown out.
  *
  * @package CrowdStar\Backoff
  */
@@ -17,11 +16,12 @@ class ExceptionCondition extends AbstractRetryCondition
     protected $exception;
 
     /**
-     * Condition constructor.
+     * ExceptionCondition constructor.
      *
      * @param string $exception
+     * @throws Exception
      */
-    public function __construct(string $exception = Exception::class)
+    public function __construct(string $exception = \Exception::class)
     {
         $this->setException($exception);
     }
@@ -29,7 +29,7 @@ class ExceptionCondition extends AbstractRetryCondition
     /**
      * @inheritdoc
      */
-    public function met($result, ?Exception $e): bool
+    public function met($result, ?\Exception $e): bool
     {
         $exception = $this->getException();
 
@@ -47,9 +47,17 @@ class ExceptionCondition extends AbstractRetryCondition
     /**
      * @param string $exception
      * @return ExceptionCondition
+     * @throws Exception
      */
     public function setException(string $exception): ExceptionCondition
     {
+        if (!class_exists($exception)) {
+            throw new Exception("Exception class {$exception} not exists");
+        }
+        if (!(new $exception() instanceof \Exception)) {
+            throw new Exception("{$exception} objects are not instance of class \Exception");
+        }
+
         $this->exception = $exception;
 
         return $this;
