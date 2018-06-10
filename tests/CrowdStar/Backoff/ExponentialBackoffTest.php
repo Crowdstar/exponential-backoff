@@ -4,6 +4,7 @@ namespace CrowdStar\Tests\Backoff;
 
 use Closure;
 use CrowdStar\Backoff\CustomizedCondition;
+use CrowdStar\Backoff\CustomizedConditionInterface;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
@@ -47,8 +48,16 @@ class ExponentialBackoffTest extends TestCase
                 $helper,
                 new ExponentialBackoff(
                     new CustomizedCondition(
-                        function ($result, ?Exception $e) use ($helper): bool {
-                            return $helper->reachExpectedAttempts();
+                        new class($helper) implements CustomizedConditionInterface {
+                            protected $helper;
+                            public function __construct(Helper $helper)
+                            {
+                                $this->helper = $helper;
+                            }
+                            public function met($result, ?Exception $e): bool
+                            {
+                                return $this->helper->reachExpectedAttempts();
+                            }
                         }
                     )
                 ),

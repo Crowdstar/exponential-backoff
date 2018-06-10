@@ -5,6 +5,7 @@
  */
 
 use CrowdStar\Backoff\CustomizedCondition;
+use CrowdStar\Backoff\CustomizedConditionInterface;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
@@ -12,17 +13,18 @@ use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-$helper  = new Helper();
+$helper    = new Helper();
+$condition = new class implements CustomizedConditionInterface {
+    public function met($result, ?Exception $e): bool
+    {
+        return $GLOBALS['helper']->reachExpectedAttempts();
+    }
+};
+
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionCondition());
 $backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
-$backoff = new ExponentialBackoff(
-    new CustomizedCondition(
-        function ($result, ?Exception $e) use ($helper): bool {
-            return $helper->reachExpectedAttempts();
-        }
-    )
-);
+$backoff = new ExponentialBackoff(new CustomizedCondition($condition));
 
 $backoff
     ->setType(ExponentialBackoff::TYPE_SECONDS)

@@ -2,7 +2,6 @@
 
 namespace CrowdStar\Backoff;
 
-use Closure;
 use Exception;
 
 /**
@@ -14,18 +13,18 @@ use Exception;
 class CustomizedCondition extends AbstractRetryCondition
 {
     /**
-     * @var Closure
+     * @var CustomizedConditionInterface
      */
-    protected $closure;
+    protected $condition;
 
     /**
      * CustomizedCondition constructor.
      *
-     * @param Closure $closure
+     * @param CustomizedConditionInterface $condition
      */
-    public function __construct(Closure $closure)
+    public function __construct(CustomizedConditionInterface $condition)
     {
-        $this->setClosure($closure);
+        $this->setCondition($condition);
     }
 
     /**
@@ -33,24 +32,24 @@ class CustomizedCondition extends AbstractRetryCondition
      */
     public function met($result, ?Exception $e): bool
     {
-        return $this->getClosure()($result, $e);
+        return $this->getCondition()->met($result, $e);
     }
 
     /**
-     * @return Closure
+     * @return CustomizedConditionInterface
      */
-    public function getClosure(): Closure
+    public function getCondition(): CustomizedConditionInterface
     {
-        return $this->closure;
+        return $this->condition;
     }
 
     /**
-     * @param Closure $closure
+     * @param CustomizedConditionInterface $condition
      * @return $this
      */
-    public function setClosure(Closure $closure): CustomizedCondition
+    public function setCondition(CustomizedConditionInterface $condition): CustomizedCondition
     {
-        $this->closure = $closure;
+        $this->condition = $condition;
 
         return $this;
     }
