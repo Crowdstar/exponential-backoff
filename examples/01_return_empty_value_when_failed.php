@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 /**
- * Sample code to return a non-empty value back after 3 failed attempts, where each failed attempt returns an empty
+ * Sample code to fetch some non-empty value back after few failed attempts, where each failed attempt returns an empty
  * value back.
  */
 

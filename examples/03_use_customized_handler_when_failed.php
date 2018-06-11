@@ -1,8 +1,7 @@
 #!/usr/bin/env php
 <?php
 /**
- * Sample code to return a non-empty value back after 3 failed attempts, where each failed attempt returns FALSE while
- * calling the customized function.
+ * Sample code to return some value back, with customized condition class used to determine if a retry is needed or not.
  */
 
 use CrowdStar\Backoff\AbstractRetryCondition;

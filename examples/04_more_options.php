@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 /**
- * Sample code to show how to define customized options when running exponential backoff.
+ * Sample code to show what options are available when doing exponential backoff with the package.
  */
 
 use CrowdStar\Backoff\AbstractRetryCondition;

@@ -1,8 +1,7 @@
 #!/usr/bin/env php
 <?php
 /**
- * Sample code to return a non-empty value back after 3 failed attempts, where each failed attempt throws an
- * exception out.
+ * Sample code to return some value back after few failed attempts, where each failed attempt throws an exception out.
  */
 
 use CrowdStar\Backoff\ExceptionBasedCondition;
