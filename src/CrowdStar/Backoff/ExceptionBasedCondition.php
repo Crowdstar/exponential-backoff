@@ -8,7 +8,7 @@ namespace CrowdStar\Backoff;
  *
  * @package CrowdStar\Backoff
  */
-class ExceptionCondition extends AbstractRetryCondition
+class ExceptionBasedCondition extends AbstractRetryCondition
 {
     /**
      * @var string
@@ -16,7 +16,7 @@ class ExceptionCondition extends AbstractRetryCondition
     protected $exception;
 
     /**
-     * ExceptionCondition constructor.
+     * ExceptionBasedCondition constructor.
      *
      * @param string $exception
      * @throws Exception
@@ -46,10 +46,10 @@ class ExceptionCondition extends AbstractRetryCondition
 
     /**
      * @param string $exception
-     * @return ExceptionCondition
+     * @return ExceptionBasedCondition
      * @throws Exception
      */
-    public function setException(string $exception): ExceptionCondition
+    public function setException(string $exception): ExceptionBasedCondition
     {
         if (!class_exists($exception)) {
             throw new Exception("Exception class {$exception} not exists");

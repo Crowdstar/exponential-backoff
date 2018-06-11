@@ -4,18 +4,18 @@ namespace CrowdStar\Tests\Backoff;
 
 use BadFunctionCallException;
 use BadMethodCallException;
-use CrowdStar\Backoff\ExceptionCondition;
+use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use Exception;
 use LogicException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Class ExceptionConditionTest
+ * Class ExceptionBasedCondition
  *
  * @package CrowdStar\Tests\Backoff
  */
-class ExceptionConditionTest extends TestCase
+class ExceptionBasedConditionTest extends TestCase
 {
     /**
      * @return array
@@ -83,7 +83,7 @@ class ExceptionConditionTest extends TestCase
 
     /**
      * @dataProvider dataSuccessfulRetries
-     * @covers \CrowdStar\Backoff\ExceptionCondition::met()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      * @param string $exceptionToCatch
      * @param string $exceptionToThrow
@@ -97,7 +97,7 @@ class ExceptionConditionTest extends TestCase
             $helper  = (new Helper())
                 ->setException($exceptionToThrow)
                 ->setExpectedFailedAttempts($expectedFailedAttempts);
-            $backoff = (new ExponentialBackoff(new ExceptionCondition($exceptionToCatch)))
+            $backoff = (new ExponentialBackoff(new ExceptionBasedCondition($exceptionToCatch)))
                 ->setMaxAttempts($maxAttempts);
 
             $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
@@ -134,7 +134,7 @@ class ExceptionConditionTest extends TestCase
     }
     /**
      * @dataProvider dataUnsuccessfulRetries
-     * @covers \CrowdStar\Backoff\ExceptionCondition::met()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      * @param int $expectedFailedAttempts
      * @param int $maxAttempts
@@ -142,9 +142,10 @@ class ExceptionConditionTest extends TestCase
      */
     public function testUnsuccessfulRetries(int $expectedFailedAttempts, int $maxAttempts)
     {
-        $helper  = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts($expectedFailedAttempts);
-        $backoff = (new ExponentialBackoff(new ExceptionCondition(Exception::class)))->setMaxAttempts($maxAttempts);
         $e       = null;
+        $helper  = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts($expectedFailedAttempts);
+        $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(Exception::class)))
+            ->setMaxAttempts($maxAttempts);
 
         $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
         try {

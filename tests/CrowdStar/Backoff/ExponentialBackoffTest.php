@@ -5,7 +5,7 @@ namespace CrowdStar\Tests\Backoff;
 use Closure;
 use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
-use CrowdStar\Backoff\ExceptionCondition;
+use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use Exception;
 use PHPUnit\Framework\TestCase;
@@ -37,7 +37,7 @@ class ExponentialBackoffTest extends TestCase
             ],
             [
                 $helper,
-                new ExponentialBackoff(new ExceptionCondition()),
+                new ExponentialBackoff(new ExceptionBasedCondition()),
                 function () use ($helper) {
                     return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
                 },

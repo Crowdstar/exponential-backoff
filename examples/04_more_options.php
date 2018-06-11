@@ -6,7 +6,7 @@
 
 use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
-use CrowdStar\Backoff\ExceptionCondition;
+use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Tests\Backoff\Helper;
 
@@ -21,8 +21,8 @@ $condition = new class extends AbstractRetryCondition {
 };
 
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
-$backoff = new ExponentialBackoff(new ExceptionCondition());
-$backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
+$backoff = new ExponentialBackoff(new ExceptionBasedCondition());
+$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class));
 $backoff = new ExponentialBackoff($condition);
 
 $backoff
