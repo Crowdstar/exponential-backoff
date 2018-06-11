@@ -70,7 +70,7 @@ class Helper
     public function reachExpectedAttempts(): bool
     {
         if (!defined('UNDER_PHPUNIT') || !UNDER_PHPUNIT) {
-            echo "total # of attempts: ", $this->currentAttempts, "\n";
+            echo "# of attempts made: ", $this->currentAttempts, "\n";
         }
 
         $reachExpectedAttempts = ($this->getCurrentAttempts() > $this->getExpectedFailedAttempts());

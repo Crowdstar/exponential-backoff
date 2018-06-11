@@ -4,8 +4,7 @@
  * Sample code to show how to define customized options when running exponential backoff.
  */
 
-use CrowdStar\Backoff\CustomizedCondition;
-use CrowdStar\Backoff\CustomizedConditionInterface;
+use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
@@ -14,7 +13,7 @@ use CrowdStar\Tests\Backoff\Helper;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 $helper    = new Helper();
-$condition = new class implements CustomizedConditionInterface {
+$condition = new class extends AbstractRetryCondition {
     public function met($result, ?Exception $e): bool
     {
         return $GLOBALS['helper']->reachExpectedAttempts();
@@ -24,7 +23,7 @@ $condition = new class implements CustomizedConditionInterface {
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionCondition());
 $backoff = new ExponentialBackoff(new ExceptionCondition(Exception::class));
-$backoff = new ExponentialBackoff(new CustomizedCondition($condition));
+$backoff = new ExponentialBackoff($condition);
 
 $backoff
     ->setType(ExponentialBackoff::TYPE_SECONDS)
