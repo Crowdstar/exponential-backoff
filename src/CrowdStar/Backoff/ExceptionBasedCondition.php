@@ -2,6 +2,8 @@
 
 namespace CrowdStar\Backoff;
 
+use ReflectionClass;
+
 /**
  * Class ExceptionBasedCondition
  * Do a retry if specified type of exception is thrown out.
@@ -54,7 +56,9 @@ class ExceptionBasedCondition extends AbstractRetryCondition
         if (!class_exists($exception)) {
             throw new Exception("Exception class {$exception} not exists");
         }
-        if (!(new $exception() instanceof \Exception)) {
+
+        $class = new ReflectionClass($exception);
+        if ((\Exception::class != $class->getName()) && !$class->isSubclassOf(\Exception::class)) {
             throw new Exception("{$exception} objects are not instance of class \Exception");
         }
 

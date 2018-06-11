@@ -6,9 +6,12 @@ use BadFunctionCallException;
 use BadMethodCallException;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use Error;
 use Exception;
 use LogicException;
+use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\TestCase;
+use TypeError;
 
 /**
  * Class ExceptionBasedCondition
@@ -132,6 +135,7 @@ class ExceptionBasedConditionTest extends TestCase
             [3, 3, 'will fail 3 times before getting a value back, but maximally only 3 times allowed'],
         ];
     }
+
     /**
      * @dataProvider dataUnsuccessfulRetries
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
@@ -165,5 +169,74 @@ class ExceptionBasedConditionTest extends TestCase
                 'maximum number of attempts have been made but all failed with exceptions thrown out'
             );
         }
+    }
+
+    /**
+     * @return array
+     */
+    public function dataSetException(): array
+    {
+        return [
+            [
+                Exception::class,
+            ],
+            [
+                LogicException::class,
+            ],
+            [
+                BadFunctionCallException::class,
+            ],
+            [
+                BadMethodCallException::class,
+            ],
+            [
+                ExpectationFailedException::class, // this one requires at least 1 parameter in the constructor method.
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataSetException
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
+     * @param string $exception
+     */
+    public function testSetException(string $exception): void
+    {
+        $this->assertSame($exception, (new ExceptionBasedCondition($exception))->getException());
+    }
+
+    /**
+     * @return array
+     */
+    public function dataSetExceptionWithExceptions(): array
+    {
+        return [
+            [
+                'Exception class \CrowdStar\Backoff\a_non_existing_class_name not exists',
+                '\CrowdStar\Backoff\a_non_existing_class_name',
+            ],
+            [
+                'Error objects are not instance of class \Exception',
+                Error::class,
+            ],
+            [
+                'TypeError objects are not instance of class \Exception',
+                TypeError::class,
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataSetExceptionWithExceptions
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
+     * @param string $expectedExceptionMessage
+     * @param string $exception
+     */
+    public function testSetExceptionWithExceptions(string $expectedExceptionMessage, string $exception): void
+    {
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage($expectedExceptionMessage);
+
+        new ExceptionBasedCondition($exception);
     }
 }

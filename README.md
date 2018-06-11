@@ -59,7 +59,7 @@ $result  = $backoff->run(
 ?>
 ```
 
-## 3. Retry When Customized Condition met
+## 3. Retry When Customized Condition Met
 
 Following code is to try to fetch some non-empty data back with method _MyClass::fetchData()_. This piece of code works
 the same as the first example, except that here it's implemented with a customized condition class instead of class
