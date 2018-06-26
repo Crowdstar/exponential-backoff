@@ -7,10 +7,9 @@ use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Reflection\Reflection;
 use Exception;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
-use ReflectionException;
 
 /**
  * Class ExponentialBackoffTest
@@ -131,8 +130,6 @@ class ExponentialBackoffTest extends TestCase
      * @param int $expectedMax
      * @param int $iteration
      * @param int $initialTimeout
-     * @return void
-     * @throws ReflectionException
      */
     public function testGetTimeoutMicroseconds(
         int $expectedMin,
@@ -140,7 +137,14 @@ class ExponentialBackoffTest extends TestCase
         int $iteration,
         int $initialTimeout
     ): void {
-        $timeout = $this->getTimeoutMicroseconds($iteration, $initialTimeout);
+        $timeout = Reflection::callMethod(
+            new ExponentialBackoff(new EmptyValueCondition()),
+            'getTimeoutMicroseconds',
+            [
+                $iteration,
+                $initialTimeout,
+            ]
+        );
 
         $this->assertGreaterThanOrEqual(
             $expectedMin,
@@ -162,21 +166,5 @@ class ExponentialBackoffTest extends TestCase
                 $expectedMax
             )
         );
-    }
-
-    /**
-     * @param int $iteration
-     * @param int $initialTimeout
-     * @return int
-     * @throws ReflectionException
-     * @see ExponentialBackoff::getTimeoutMicroseconds()
-     */
-    protected function getTimeoutMicroseconds(int $iteration, int $initialTimeout): int
-    {
-        $class  = new ReflectionClass(ExponentialBackoff::class);
-        $method = $class->getMethod('getTimeoutMicroseconds');
-        $method->setAccessible(true);
-
-        return $method->invokeArgs(new ExponentialBackoff(new EmptyValueCondition()), [$iteration, $initialTimeout]);
     }
 }
