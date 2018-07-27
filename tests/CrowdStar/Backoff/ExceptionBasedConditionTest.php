@@ -166,7 +166,7 @@ class ExceptionBasedConditionTest extends TestCase
             $this->assertSame(
                 $maxAttempts,
                 $backoff->getCurrentAttempts(),
-                'maximum number of attempts have been made but all failed with exceptions thrown out'
+                'maximum number of allowed attempts have been made but all failed with exceptions thrown out'
             );
         }
     }

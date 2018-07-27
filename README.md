@@ -129,6 +129,44 @@ $result = $backoff->run(
 ?>
 ```
 
+## 5. To Disable Exponential Backoff Temporarily
+
+There are two ways to disable exponential backoff temporarily for code piece like following:
+
+```php
+<?php
+$result = MyClass::fetchData();
+?>
+```
+
+First, you may disable exponential backoff temporarily by calling method _\CrowdStar\Backoff\ExponentialBackoff::disable()_. For example:
+
+```php
+<?php
+use CrowdStar\Backoff\EmptyValueCondition;
+use CrowdStar\Backoff\ExponentialBackoff;
+
+$backoff = new ExponentialBackoff(new EmptyValueCondition());
+$backoff->disable();
+$result = $backoff->run(function () {return MyClass::fetchData();});
+?>
+```
+
+You may also disable exponential backoff temporarily by using class _\CrowdStar\Backoff\NullCondition_:
+
+```php
+<?php
+use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\NullCondition;
+
+$result = (new ExponentialBackoff(new NullCondition()))
+    ->setRetryCondition(new NullCondition()) // The method here is for demonstration purpose.
+    ->run(function () {return MyClass::fetchData();});
+?>
+```
+
+All these 3 code piece work the same, having return value of method call _MyClass::fetchData()_ assigned to variable _$result_.
+
 # Sample Scripts
 
 Sample scripts can be found under folder _examples/_. Before running them under CLI, please do a composer update first:

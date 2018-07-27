@@ -74,6 +74,15 @@ class ExponentialBackoff
     }
 
     /**
+     * @return ExponentialBackoff
+     * @throws Exception
+     */
+    public function disable(): ExponentialBackoff
+    {
+        return $this->setMaxAttempts(1);
+    }
+
+    /**
      * @return int
      */
     public function getType(): int
@@ -108,7 +117,7 @@ class ExponentialBackoff
     public function setMaxAttempts(int $maxAttempts): ExponentialBackoff
     {
         if ($maxAttempts < 1) {
-            throw new Exception('maximum number of attempts must be at least 1');
+            throw new Exception('maximum number of allowed attempts must be at least 1');
         }
 
         $this->maxAttempts = $maxAttempts;
