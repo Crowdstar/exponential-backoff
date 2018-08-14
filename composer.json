@@ -2,7 +2,7 @@
     "name": "crowdstar/exponential-backoff",
     "description": "Prevent overloading an unavailable service by doubling the timeout each iteration.",
     "homepage": "https://www.glu.com",
-    "license": "proprietary",
+    "license": "Apache-2.0",
     "require": {
         "php": ">=7.1"
     },
