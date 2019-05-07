@@ -9,5 +9,5 @@ before_install:
   - composer update -n
 
 script:
-  - ./vendor/bin/phpcs -v --standard=PSR2 src tests/CrowdStar
+  - ./vendor/bin/phpcs -v --standard=PSR2 src tests/unit
   - ./vendor/bin/phpunit

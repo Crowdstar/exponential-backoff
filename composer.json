@@ -13,12 +13,12 @@
     },
     "autoload": {
         "psr-4": {
-            "CrowdStar\\Backoff\\": "src/CrowdStar/Backoff"
+            "CrowdStar\\Backoff\\": "src"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "CrowdStar\\Tests\\Backoff\\": "tests/CrowdStar/Backoff/"
+            "CrowdStar\\Tests\\Backoff\\": "tests/unit"
         }
     }
 }
