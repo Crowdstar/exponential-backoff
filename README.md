@@ -51,11 +51,15 @@ use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class));
-$result  = $backoff->run(
-    function () {
-        return MyClass::fetchData();
-    }
-);
+try {
+    $result = $backoff->run(
+        function () {
+            return MyClass::fetchData();
+        }
+    );
+} catch (Exception $e) {
+    // Handle the exception here.
+}
 ?>
 ```
 
