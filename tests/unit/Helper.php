@@ -1,4 +1,5 @@
 <?php
+
 /**************************************************************************
  * Copyright 2018 Glu Mobile Inc.
  *
@@ -28,7 +29,7 @@ use Exception;
  */
 class Helper
 {
-    const VALUE = 'Hello World!';
+    protected const VALUE = 'Hello World!';
 
     /**
      * Expected numbers of failed attempts before the value could be fetched.

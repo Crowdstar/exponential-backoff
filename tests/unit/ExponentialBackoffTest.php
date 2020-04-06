@@ -1,4 +1,5 @@
 <?php
+
 /**************************************************************************
  * Copyright 2018 Glu Mobile Inc.
  *
@@ -60,7 +61,7 @@ class ExponentialBackoffTest extends TestCase
             [
                 $helper,
                 new ExponentialBackoff(
-                    new class($helper) extends AbstractRetryCondition {
+                    new class ($helper) extends AbstractRetryCondition {
                         protected $helper;
                         public function __construct(Helper $helper)
                         {

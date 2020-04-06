@@ -1,4 +1,5 @@
 <?php
+
 /**************************************************************************
  * Copyright 2018 Glu Mobile Inc.
  *
@@ -29,8 +30,8 @@ use Closure;
  */
 class ExponentialBackoff
 {
-    const TYPE_MICROSECONDS = 1;
-    const TYPE_SECONDS      = 2;
+    public const TYPE_MICROSECONDS = 1;
+    public const TYPE_SECONDS      = 2;
 
     /**
      * @var int
