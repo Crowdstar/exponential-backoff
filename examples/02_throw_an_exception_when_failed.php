@@ -20,6 +20,8 @@
  * Sample code to return some value back after few failed attempts, where each failed attempt throws an exception out.
  */
 
+declare(strict_types=1);
+
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Tests\Backoff\Helper;

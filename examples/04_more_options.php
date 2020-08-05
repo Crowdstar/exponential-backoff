@@ -20,6 +20,8 @@
  * Sample code to show what options are available when doing exponential backoff with the package.
  */
 
+declare(strict_types=1);
+
 use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;

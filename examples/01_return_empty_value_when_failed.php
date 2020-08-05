@@ -21,6 +21,8 @@
  * value back.
  */
 
+declare(strict_types=1);
+
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Tests\Backoff\Helper;

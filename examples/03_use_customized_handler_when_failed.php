@@ -20,6 +20,8 @@
  * Sample code to return some value back, with customized condition class used to determine if a retry is needed or not.
  */
 
+declare(strict_types=1);
+
 use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Tests\Backoff\Helper;
