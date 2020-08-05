@@ -67,7 +67,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
      * @return ExceptionBasedCondition
      * @throws Exception
      */
-    public function setException(string $exception): ExceptionBasedCondition
+    public function setException(string $exception): self
     {
         if (!class_exists($exception)) {
             throw new Exception("Exception class {$exception} not exists");

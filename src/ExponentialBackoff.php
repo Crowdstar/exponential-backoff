@@ -53,11 +53,6 @@ class ExponentialBackoff
      */
     protected $retryCondition;
 
-    /**
-     * ExponentialBackoff constructor.
-     *
-     * @param AbstractRetryCondition $retryCondition
-     */
     public function __construct(AbstractRetryCondition $retryCondition)
     {
         $this->setRetryCondition($retryCondition);
@@ -90,47 +85,34 @@ class ExponentialBackoff
     }
 
     /**
-     * @return ExponentialBackoff
      * @throws Exception
      */
-    public function disable(): ExponentialBackoff
+    public function disable(): self
     {
         return $this->setMaxAttempts(1);
     }
 
-    /**
-     * @return int
-     */
     public function getType(): int
     {
         return $this->type;
     }
 
-    /**
-     * @param int $type
-     * @return $this
-     */
-    public function setType(int $type): ExponentialBackoff
+    public function setType(int $type): self
     {
         $this->type = $type;
 
         return $this;
     }
 
-    /**
-     * @return int
-     */
     public function getMaxAttempts(): int
     {
         return $this->maxAttempts;
     }
 
     /**
-     * @param int $maxAttempts
-     * @return ExponentialBackoff
      * @throws Exception
      */
-    public function setMaxAttempts(int $maxAttempts): ExponentialBackoff
+    public function setMaxAttempts(int $maxAttempts): self
     {
         if ($maxAttempts < 1) {
             throw new Exception('maximum number of allowed attempts must be at least 1');
@@ -141,37 +123,24 @@ class ExponentialBackoff
         return $this;
     }
 
-    /**
-     * @return int
-     */
     public function getCurrentAttempts(): int
     {
         return $this->currentAttempts;
     }
 
-    /**
-     * @return $this
-     */
-    protected function increaseCurrentAttempts(): ExponentialBackoff
+    protected function increaseCurrentAttempts(): self
     {
         $this->currentAttempts++;
 
         return $this;
     }
 
-    /**
-     * @return AbstractRetryCondition
-     */
-    public function getRetryCondition()
+    public function getRetryCondition(): AbstractRetryCondition
     {
         return $this->retryCondition;
     }
 
-    /**
-     * @param AbstractRetryCondition $retryCondition
-     * @return $this
-     */
-    public function setRetryCondition(AbstractRetryCondition $retryCondition): ExponentialBackoff
+    public function setRetryCondition(AbstractRetryCondition $retryCondition): self
     {
         $this->retryCondition = $retryCondition;
 
@@ -200,10 +169,9 @@ class ExponentialBackoff
     }
 
     /**
-     * @return ExponentialBackoff
      * @throws Exception
      */
-    protected function sleep(): ExponentialBackoff
+    protected function sleep(): self
     {
         switch ($this->getType()) {
             case self::TYPE_MICROSECONDS:
@@ -214,18 +182,13 @@ class ExponentialBackoff
                 break;
             default:
                 throw new Exception("invalid backoff type '{$this->getType()}'");
-                break;
         }
 
         return $this->increaseCurrentAttempts();
     }
 
     /**
-     * Get the next timeout in seconds
-     *
-     * @param int $iteration
-     * @param int $initialTimeout
-     * @return int
+     * Get the next timeout in seconds.
      */
     protected function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
     {
@@ -233,11 +196,7 @@ class ExponentialBackoff
     }
 
     /**
-     * Get the next timeout in microseconds
-     *
-     * @param int $iteration
-     * @param int $initialTimeout
-     * @return int
+     * Get the next timeout in microseconds.
      */
     protected function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
     {
