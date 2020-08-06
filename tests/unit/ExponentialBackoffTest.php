@@ -36,7 +36,7 @@ use PHPUnit\Framework\TestCase;
  */
 class ExponentialBackoffTest extends TestCase
 {
-    public function dataFailuresWithEmptyValue(): array
+    public function dataSuccessfulRetries(): array
     {
         $helper = (new Helper())->setException(Exception::class);
         return [
@@ -80,15 +80,157 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * @dataProvider dataFailuresWithEmptyValue
+     * @dataProvider dataSuccessfulRetries
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testFailuresWithEmptyValue(Helper $helper, ExponentialBackoff $backoff, Closure $c, string $message)
+    public function testSuccessfulRetries(Helper $helper, ExponentialBackoff $backoff, Closure $c, string $message)
     {
         $helper->reset();
         $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
         $this->assertSame($helper->getValue(), $backoff->run($c), $message);
         $this->assertSame(4, $backoff->getCurrentAttempts(), 'current iteration should be 4 (after 4 attempts)');
+    }
+
+    public function dataDelays(): array
+    {
+        // We add 0.2 seconds to the total execution time in each test, assuming that the rest part of the test won't
+        // take more than 0.2 seconds to finish.
+        return [
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
+                0.00,
+                0.20,
+                'It takes no time to do exponential backoff with maximum # of attempts "1".',
+            ],
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(2),
+                0.25,
+                0.40,
+                'It takes barely over 0.25 second to do exponential backoff with maximum # of attempts "2".',
+            ],
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(3),
+                0.75,
+                0.95,
+                'It takes barely over 0.75 second to do exponential backoff with maximum # of attempts "3".',
+            ],
+            [
+                new ExponentialBackoff(new EmptyValueCondition()),
+                1.75,
+                1.95,
+                'It takes barely over 1.75 seconds to do exponential backoff with a default maximum # of attempts "4".',
+            ],
+
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setType(ExponentialBackoff::TYPE_SECONDS)
+                    ->setMaxAttempts(1),
+                0.0,
+                0.2,
+                'It takes no time to do exponential backoff with maximum # of attempts "1".',
+            ],
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setType(ExponentialBackoff::TYPE_SECONDS)
+                    ->setMaxAttempts(2),
+                1.0,
+                1.2,
+                'It takes barely over 1 second to do exponential backoff with maximum # of attempts "2".',
+            ],
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setType(ExponentialBackoff::TYPE_SECONDS)
+                    ->setMaxAttempts(3),
+                3.0,
+                3.2,
+                'It takes barely over 3 seconds to do exponential backoff with maximum # of attempts "3".',
+            ],
+            [
+                (new ExponentialBackoff(new EmptyValueCondition()))->setType(ExponentialBackoff::TYPE_SECONDS),
+                7.0,
+                7.2,
+                'It takes barely over 7 seconds to do exponential backoff with a default maximum # of attempts "4".',
+            ],
+        ];
+    }
+
+    /**
+     * @dataProvider dataDelays
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
+     * @group c
+     */
+    public function testDelays(ExponentialBackoff $backoff, float $expectedMin, float $expectedMax, string $message)
+    {
+        $helper = new Helper();
+        $start = microtime(true);
+        $backoff->run(
+            function () use ($helper) {
+                return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
+            }
+        );
+        $end = microtime(true);
+
+        self::assertThat(
+            ($end - $start),
+            self::logicalAnd(
+                self::greaterThanOrEqual($expectedMin),
+                self::lessThanOrEqual($expectedMax)
+            ),
+            $message
+        );
+    }
+
+    public function dataGetTimeoutSeconds(): array
+    {
+        // Test data to help to understand how timeouts are calculated, with input data in following order:
+        //     ($expectedMin, $expectedMax, $iteration, $initialTimeout)
+        $data = [
+            [(50 *  1), ((50 *  1) + ((50 *  1) / 10)), 1, 50],
+            [(60 *  2), ((60 *  2) + ((60 *  2) / 10)), 2, 60],
+            [(70 *  4), ((70 *  4) + ((70 *  4) / 10)), 3, 70],
+
+            // Exactly same input data as above 3 ones, just to help to understand the timeouts better.
+            [ 50,  55, 1, 50],
+            [120, 132, 2, 60],
+            [280, 308, 3, 70],
+        ];
+
+        // Since we are testing methods with random output, repeat tests on same data for 20 (4 * 5) times.
+        $data = array_merge($data, $data, $data, $data);
+        $data = array_merge($data, $data, $data, $data, $data);
+
+        return $data;
+    }
+
+    /**
+     * @dataProvider dataGetTimeoutSeconds
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
+     */
+    public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout)
+    {
+        self::assertThat(
+            Reflection::callMethod(
+                new ExponentialBackoff(new EmptyValueCondition()),
+                'getTimeoutSeconds',
+                [
+                    $iteration,
+                    $initialTimeout,
+                ]
+            ),
+            self::logicalAnd(
+                self::greaterThanOrEqual($expectedMin),
+                self::lessThanOrEqual($expectedMax)
+            ),
+            sprintf(
+                'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
+                $iteration,
+                $initialTimeout,
+                $expectedMin,
+                $expectedMax
+            )
+        );
     }
 
     public function dataGetTimeoutMicroseconds(): array
@@ -139,32 +281,24 @@ class ExponentialBackoffTest extends TestCase
         int $iteration,
         int $initialTimeout
     ): void {
-        $timeout = Reflection::callMethod(
-            new ExponentialBackoff(new EmptyValueCondition()),
-            'getTimeoutMicroseconds',
-            [
-                $iteration,
-                $initialTimeout,
-            ]
-        );
-
-        self::assertGreaterThanOrEqual(
-            $expectedMin,
-            $timeout,
+        self::assertThat(
+            Reflection::callMethod(
+                new ExponentialBackoff(new EmptyValueCondition()),
+                'getTimeoutMicroseconds',
+                [
+                    $iteration,
+                    $initialTimeout,
+                ]
+            ),
+            self::logicalAnd(
+                self::greaterThanOrEqual($expectedMin),
+                self::lessThanOrEqual($expectedMax)
+            ),
             sprintf(
-                'For round #%d with initial timeout %d, expected timeout should be no less than %d.',
+                'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
                 $iteration,
                 $initialTimeout,
-                $expectedMin
-            )
-        );
-        self::assertLessThanOrEqual(
-            $expectedMax,
-            $timeout,
-            sprintf(
-                'For round #%d with initial timeout %d, expected timeout should be no greater than %d.',
-                $iteration,
-                $initialTimeout,
+                $expectedMin,
                 $expectedMax
             )
         );
