@@ -159,7 +159,6 @@ class ExponentialBackoffTest extends TestCase
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
-     * @group c
      */
     public function testDelays(ExponentialBackoff $backoff, float $expectedMin, float $expectedMax, string $message)
     {
