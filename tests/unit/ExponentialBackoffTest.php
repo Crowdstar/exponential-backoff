@@ -94,7 +94,7 @@ class ExponentialBackoffTest extends TestCase
     public function dataGetTimeoutMicroseconds(): array
     {
         // Test data to help to understand how timeouts are calculated, with input data in following order:
-        //     ($expectedMin, $expectedMax, $iteration, $initial_timeout)
+        //     ($expectedMin, $expectedMax, $iteration, $initialTimeout)
         $simpleData = [
             [(50 *  1), ((50 *  1) + ((50 *  1) / 10)), 1, 50],
             [(60 *  2), ((60 *  2) + ((60 *  2) / 10)), 2, 60],
@@ -148,7 +148,7 @@ class ExponentialBackoffTest extends TestCase
             ]
         );
 
-        $this->assertGreaterThanOrEqual(
+        self::assertGreaterThanOrEqual(
             $expectedMin,
             $timeout,
             sprintf(
@@ -158,7 +158,7 @@ class ExponentialBackoffTest extends TestCase
                 $expectedMin
             )
         );
-        $this->assertLessThanOrEqual(
+        self::assertLessThanOrEqual(
             $expectedMax,
             $timeout,
             sprintf(

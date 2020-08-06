@@ -108,10 +108,10 @@ class NullConditionTest extends TestCase
         Closure $c,
         string $message
     ) {
-        $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
-        $this->assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
-        $this->assertSame($expectedValue, $backoff->run($c), $message);
-        $this->assertSame(
+        self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
+        self::assertSame($expectedValue, $backoff->run($c), $message);
+        self::assertSame(
             1,
             $backoff->getCurrentAttempts(),
             'current iteration should still be 1 after first attempt (no matter what has been returned)'
@@ -148,8 +148,8 @@ class NullConditionTest extends TestCase
      */
     public function testUnsuccessfulRetries(int $expectedMaxAttempts, ExponentialBackoff $backoff)
     {
-        $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
-        $this->assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
+        self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
 
         $e = null;
         try {
@@ -161,8 +161,8 @@ class NullConditionTest extends TestCase
         } catch (Exception $e) {
             // Nothing to do here. Exceptions will be evaluates in the finally block.
         } finally {
-            $this->assertInstanceOf(Exception::class, $e);
-            $this->assertSame(
+            self::assertInstanceOf(Exception::class, $e);
+            self::assertSame(
                 1,
                 $backoff->getCurrentAttempts(),
                 'current iteration should still be 1 after first attempt (no matter what has been returned)'

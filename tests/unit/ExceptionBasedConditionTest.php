@@ -114,8 +114,8 @@ class ExceptionBasedConditionTest extends TestCase
             $backoff = (new ExponentialBackoff(new ExceptionBasedCondition($exceptionToCatch)))
                 ->setMaxAttempts($maxAttempts);
 
-            $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
-            $this->assertSame(
+            self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+            self::assertSame(
                 $helper->getValue(),
                 $backoff->run(
                     function () use ($helper) {
@@ -124,7 +124,7 @@ class ExceptionBasedConditionTest extends TestCase
                 ),
                 $message
             );
-            $this->assertSame(
+            self::assertSame(
                 $expectedFailedAttempts + 1,
                 $backoff->getCurrentAttempts(),
                 'total # of attempts made should be one time more than failed attempts'
@@ -156,7 +156,7 @@ class ExceptionBasedConditionTest extends TestCase
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(Exception::class)))
             ->setMaxAttempts($maxAttempts);
 
-        $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
         try {
             $backoff->run(
                 function () use ($helper) {
@@ -166,9 +166,9 @@ class ExceptionBasedConditionTest extends TestCase
         } catch (Exception $e) {
             // Nothing to do here. Exceptions will be evaluates in the finally block.
         } finally {
-            $this->assertInstanceOf(Exception::class, $e);
-            $this->assertSame('an exception thrown out from class \CrowdStar\Tests\Backoff\Helper', $e->getMessage());
-            $this->assertSame(
+            self::assertInstanceOf(Exception::class, $e);
+            self::assertSame('an exception thrown out from class \CrowdStar\Tests\Backoff\Helper', $e->getMessage());
+            self::assertSame(
                 $maxAttempts,
                 $backoff->getCurrentAttempts(),
                 'maximum number of allowed attempts have been made but all failed with exceptions thrown out'
@@ -203,7 +203,7 @@ class ExceptionBasedConditionTest extends TestCase
      */
     public function testSetException(string $exception): void
     {
-        $this->assertSame($exception, (new ExceptionBasedCondition($exception))->getException());
+        self::assertSame($exception, (new ExceptionBasedCondition($exception))->getException());
     }
 
     /**
