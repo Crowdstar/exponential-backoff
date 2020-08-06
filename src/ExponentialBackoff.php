@@ -21,6 +21,7 @@ declare(strict_types=1);
 namespace CrowdStar\Backoff;
 
 use Closure;
+use Swoole\Coroutine;
 
 /**
  * Class ExponentialBackoff
@@ -35,10 +36,20 @@ class ExponentialBackoff
     public const TYPE_MICROSECONDS = 1;
     public const TYPE_SECONDS      = 2;
 
+    protected const SAPI_DEFAULT = 1;
+    protected const SAPI_SWOOLE  = 2;
+
     /**
      * @var int
      */
     protected $type = self::TYPE_MICROSECONDS;
+
+    /**
+     * @var string
+     * @see \CrowdStar\Backoff\ExponentialBackoff::SAPI_DEFAULT
+     * @see \CrowdStar\Backoff\ExponentialBackoff::SAPI_SWOOLE
+     */
+    protected $sapi;
 
     /**
      * @var int
@@ -55,8 +66,10 @@ class ExponentialBackoff
      */
     protected $retryCondition;
 
-    public function __construct(AbstractRetryCondition $retryCondition)
+    public function __construct(AbstractRetryCondition $retryCondition, int $sapi = 0)
     {
+        $this->sapi = $sapi ?: (extension_loaded('swoole') ? self::SAPI_SWOOLE : self::SAPI_DEFAULT);
+
         $this->setRetryCondition($retryCondition);
     }
 
@@ -177,10 +190,28 @@ class ExponentialBackoff
     {
         switch ($this->getType()) {
             case self::TYPE_MICROSECONDS:
-                usleep($this->getTimeoutMicroseconds($this->getCurrentAttempts()));
+                $microSeconds = $this->getTimeoutMicroseconds($this->getCurrentAttempts());
+                switch ($this->sapi) {
+                    case self::SAPI_SWOOLE:
+                        // Minimum execution delay in Swoole is 1ms.
+                        Coroutine::sleep(max($microSeconds / 1000000, 0.001));
+                        break;
+                    default:
+                        usleep($microSeconds);
+                        break;
+                }
                 break;
             case self::TYPE_SECONDS:
-                usleep($this->getTimeoutSeconds($this->getCurrentAttempts()));
+                $seconds = $this->getTimeoutSeconds($this->getCurrentAttempts());
+                switch ($this->sapi) {
+                    case self::SAPI_SWOOLE:
+                        // Minimum execution delay in Swoole is 1ms.
+                        Coroutine::sleep(max($seconds, 0.001));
+                        break;
+                    default:
+                        sleep($seconds);
+                        break;
+                }
                 break;
             default:
                 throw new Exception("invalid backoff type '{$this->getType()}'");
@@ -194,7 +225,7 @@ class ExponentialBackoff
      */
     protected function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
     {
-        return ($this->getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
+        return (int) ($this->getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
     }
 
     /**

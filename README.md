@@ -8,6 +8,8 @@
 Exponential back-offs prevent overloading an unavailable service by doubling the timeout each iteration. This class uses
 an exponential back-off algorithm to calculate the timeout for the next request.
 
+This library allows doing exponential backoff in non-blocking mode in [Swoole](https://github.com/swoole/swoole-src).
+
 # Installation
 
 ```bash

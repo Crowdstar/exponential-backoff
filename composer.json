@@ -9,7 +9,11 @@
     "require-dev": {
         "crowdstar/reflection": "~1.0.0",
         "phpunit/phpunit": "~7.0",
+        "swoole/ide-helper": "@dev",
         "squizlabs/php_codesniffer": ">=2.0"
+    },
+    "suggest": {
+        "ext-swoole": "Allow to do exponential backoff in non-blocking mode in Swoole"
     },
     "autoload": {
         "psr-4": {
