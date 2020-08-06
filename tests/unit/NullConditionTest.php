@@ -34,10 +34,6 @@ use PHPUnit\Framework\TestCase;
  */
 class NullConditionTest extends TestCase
 {
-    /**
-     * @return array
-     * @throws \CrowdStar\Backoff\Exception
-     */
     public function dataSuccessfulRetries(): array
     {
         return [
@@ -104,12 +100,6 @@ class NullConditionTest extends TestCase
      * @covers \CrowdStar\Backoff\ExponentialBackoff::disable()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      * @covers \CrowdStar\Backoff\NullCondition
-     * @param int $expectedMaxAttempts
-     * @param int $expectedValue
-     * @param ExponentialBackoff $backoff
-     * @param Closure $c
-     * @param string $message
-     * @throws \CrowdStar\Backoff\Exception
      */
     public function testSuccessfulRetries(
         int $expectedValue,
@@ -128,10 +118,6 @@ class NullConditionTest extends TestCase
         );
     }
 
-    /**
-     * @return array
-     * @throws \CrowdStar\Backoff\Exception
-     */
     public function dataUnsuccessfulRetries(): array
     {
         return [
@@ -159,8 +145,6 @@ class NullConditionTest extends TestCase
      * @covers \CrowdStar\Backoff\ExponentialBackoff::disable()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      * @covers \CrowdStar\Backoff\NullCondition
-     * @param int $expectedMaxAttempts
-     * @param ExponentialBackoff $backoff
      */
     public function testUnsuccessfulRetries(int $expectedMaxAttempts, ExponentialBackoff $backoff)
     {

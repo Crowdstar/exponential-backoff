@@ -51,8 +51,6 @@ class Helper
 
     /**
      * To return an empty string back when not yet reached expected # of failed attempts, otherwise return the value.
-     *
-     * @return string
      */
     public function getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(): string
     {
@@ -66,7 +64,6 @@ class Helper
     /**
      * To throw an exception out when not yet reached expected # of failed attempts, otherwise return the value.
      *
-     * @return string
      * @throws Exception
      */
     public function getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(): string
@@ -82,8 +79,6 @@ class Helper
     /**
      * Return TRUE if not yet reached expected # of failed attempts, otherwise return FALSE. This method will also
      * increment the iterator by 1 every time when called.
-     *
-     * @return bool
      */
     public function reachExpectedAttempts(): bool
     {
@@ -98,74 +93,50 @@ class Helper
     }
 
     /**
-     * @return $this
      * @see AttemptsTrait::$currentAttempts
      */
-    public function reset(): Helper
+    public function reset(): self
     {
         $this->currentAttempts = 1;
 
         return $this;
     }
 
-    /**
-     * @return string
-     */
     public function getValue(): string
     {
         return self::VALUE;
     }
 
-    /**
-     * @return int
-     */
     public function getExpectedFailedAttempts(): int
     {
         return $this->expectedFailedAttempts;
     }
 
-    /**
-     * @param int $expectedFailedAttempts
-     * @return $this
-     */
-    public function setExpectedFailedAttempts(int $expectedFailedAttempts): Helper
+    public function setExpectedFailedAttempts(int $expectedFailedAttempts): self
     {
         $this->expectedFailedAttempts = $expectedFailedAttempts;
 
         return $this;
     }
 
-    /**
-     * @return int
-     */
     public function getCurrentAttempts(): int
     {
         return $this->currentAttempts;
     }
 
-    /**
-     * @return $this
-     */
-    protected function increaseCurrentAttempts(): Helper
+    protected function increaseCurrentAttempts(): self
     {
         $this->currentAttempts++;
 
         return $this;
     }
 
-    /**
-     * @return string
-     */
     public function getException(): string
     {
         return $this->exception;
     }
 
-    /**
-     * @param string $exception
-     * @return $this
-     */
-    public function setException(string $exception): Helper
+    public function setException(string $exception): self
     {
         $this->exception = $exception;
 

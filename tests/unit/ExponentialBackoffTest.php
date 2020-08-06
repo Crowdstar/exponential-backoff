@@ -36,10 +36,6 @@ use PHPUnit\Framework\TestCase;
  */
 class ExponentialBackoffTest extends TestCase
 {
-    /**
-     * @return array
-     * @throws \CrowdStar\Backoff\Exception
-     */
     public function dataFailuresWithEmptyValue(): array
     {
         $helper = (new Helper())->setException(Exception::class);
@@ -86,11 +82,6 @@ class ExponentialBackoffTest extends TestCase
     /**
      * @dataProvider dataFailuresWithEmptyValue
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
-     * @param Helper $helper
-     * @param ExponentialBackoff $backoff
-     * @param Closure $c
-     * @param string $message
-     * @throws \CrowdStar\Backoff\Exception
      */
     public function testFailuresWithEmptyValue(Helper $helper, ExponentialBackoff $backoff, Closure $c, string $message)
     {
@@ -100,9 +91,6 @@ class ExponentialBackoffTest extends TestCase
         $this->assertSame(4, $backoff->getCurrentAttempts(), 'current iteration should be 4 (after 4 attempts)');
     }
 
-    /**
-     * @return array
-     */
     public function dataGetTimeoutMicroseconds(): array
     {
         // Test data to help to understand how timeouts are calculated, with input data in following order:
@@ -144,10 +132,6 @@ class ExponentialBackoffTest extends TestCase
     /**
      * @dataProvider dataGetTimeoutMicroseconds
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
-     * @param int $expectedMin
-     * @param int $expectedMax
-     * @param int $iteration
-     * @param int $initialTimeout
      */
     public function testGetTimeoutMicroseconds(
         int $expectedMin,

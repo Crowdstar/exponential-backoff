@@ -38,9 +38,6 @@ use TypeError;
  */
 class ExceptionBasedConditionTest extends TestCase
 {
-    /**
-     * @return array
-     */
     public function dataSuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
@@ -106,10 +103,6 @@ class ExceptionBasedConditionTest extends TestCase
      * @dataProvider dataSuccessfulRetries
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
-     * @param string $exceptionToCatch
-     * @param string $exceptionToThrow
-     * @param string $message
-     * @throws \CrowdStar\Backoff\Exception
      */
     public function testSuccessfulRetries(string $exceptionToCatch, string $exceptionToThrow, string $message)
     {
@@ -139,9 +132,6 @@ class ExceptionBasedConditionTest extends TestCase
         }
     }
 
-    /**
-     * @return array
-     */
     public function dataUnsuccessfulRetries(): array
     {
         return [
@@ -158,9 +148,6 @@ class ExceptionBasedConditionTest extends TestCase
      * @dataProvider dataUnsuccessfulRetries
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
-     * @param int $expectedFailedAttempts
-     * @param int $maxAttempts
-     * @throws \CrowdStar\Backoff\Exception
      */
     public function testUnsuccessfulRetries(int $expectedFailedAttempts, int $maxAttempts)
     {
@@ -189,9 +176,6 @@ class ExceptionBasedConditionTest extends TestCase
         }
     }
 
-    /**
-     * @return array
-     */
     public function dataSetException(): array
     {
         return [
@@ -216,7 +200,6 @@ class ExceptionBasedConditionTest extends TestCase
     /**
      * @dataProvider dataSetException
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
-     * @param string $exception
      */
     public function testSetException(string $exception): void
     {
@@ -247,8 +230,6 @@ class ExceptionBasedConditionTest extends TestCase
     /**
      * @dataProvider dataSetExceptionWithExceptions
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
-     * @param string $expectedExceptionMessage
-     * @param string $exception
      */
     public function testSetExceptionWithExceptions(string $expectedExceptionMessage, string $exception): void
     {
