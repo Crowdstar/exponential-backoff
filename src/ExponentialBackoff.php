@@ -190,7 +190,7 @@ class ExponentialBackoff
     {
         switch ($this->getType()) {
             case self::TYPE_MICROSECONDS:
-                $microSeconds = $this->getTimeoutMicroseconds($this->getCurrentAttempts());
+                $microSeconds = self::getTimeoutMicroseconds($this->getCurrentAttempts());
                 switch ($this->sapi) {
                     case self::SAPI_SWOOLE:
                         // Minimum execution delay in Swoole is 1ms.
@@ -202,7 +202,7 @@ class ExponentialBackoff
                 }
                 break;
             case self::TYPE_SECONDS:
-                $seconds = $this->getTimeoutSeconds($this->getCurrentAttempts());
+                $seconds = self::getTimeoutSeconds($this->getCurrentAttempts());
                 switch ($this->sapi) {
                     case self::SAPI_SWOOLE:
                         // Minimum execution delay in Swoole is 1ms.
@@ -223,15 +223,15 @@ class ExponentialBackoff
     /**
      * Get the next timeout in seconds.
      */
-    protected function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
+    public static function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
     {
-        return (int) ($this->getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
+        return (int) (self::getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
     }
 
     /**
      * Get the next timeout in microseconds.
      */
-    protected function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
+    public static function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
     {
         $timeout = $initialTimeout * (1 << --$iteration);
 

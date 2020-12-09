@@ -210,14 +210,7 @@ class ExponentialBackoffTest extends TestCase
     public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout)
     {
         self::assertThat(
-            Reflection::callMethod(
-                new ExponentialBackoff(new EmptyValueCondition()),
-                'getTimeoutSeconds',
-                [
-                    $iteration,
-                    $initialTimeout,
-                ]
-            ),
+            ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout),
             self::logicalAnd(
                 self::greaterThanOrEqual($expectedMin),
                 self::lessThanOrEqual($expectedMax)
@@ -281,14 +274,7 @@ class ExponentialBackoffTest extends TestCase
         int $initialTimeout
     ): void {
         self::assertThat(
-            Reflection::callMethod(
-                new ExponentialBackoff(new EmptyValueCondition()),
-                'getTimeoutMicroseconds',
-                [
-                    $iteration,
-                    $initialTimeout,
-                ]
-            ),
+            ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout),
             self::logicalAnd(
                 self::greaterThanOrEqual($expectedMin),
                 self::lessThanOrEqual($expectedMax)
