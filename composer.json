@@ -7,7 +7,6 @@
         "php": ">=7.1"
     },
     "require-dev": {
-        "crowdstar/reflection": "~1.0.0",
         "phpunit/phpunit": "~7.0",
         "swoole/ide-helper": "@dev",
         "squizlabs/php_codesniffer": ">=2.0"
