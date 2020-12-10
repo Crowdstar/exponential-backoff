@@ -16,3 +16,6 @@
 
 # Ignore file phpunit.xml
 /phpunit.xml
+
+# Ignore PHPUnit files
+/.phpunit.result.cache
