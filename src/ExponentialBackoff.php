@@ -68,7 +68,13 @@ class ExponentialBackoff
 
     public function __construct(AbstractRetryCondition $retryCondition, int $sapi = 0)
     {
-        $this->sapi = $sapi ?: (extension_loaded('swoole') ? self::SAPI_SWOOLE : self::SAPI_DEFAULT);
+        if (!empty($sapi)) {
+            $this->sapi = $sapi;
+        } elseif (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) {
+            $this->sapi = self::SAPI_SWOOLE; // If running inside a coroutine created by Swoole.
+        } else {
+            $this->sapi = self::SAPI_DEFAULT;
+        }
 
         $this->setRetryCondition($retryCondition);
     }
