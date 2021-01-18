@@ -5,6 +5,13 @@ on: [ push, pull_request, workflow_dispatch ]
 jobs:
   tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        php: ["7.1", "7.2", "7.3", "7.4", "8.0"]
+
+    name: Tests Under PHP ${{ matrix.php }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -12,7 +19,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 7.4
+          php-version: ${{ matrix.php }}
           tools: composer:v2
           coverage: none
 
@@ -23,15 +30,8 @@ jobs:
           max_attempts: 5
           command: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Run Coding Style Checks
-        run: ./vendor/bin/phpcs -v --standard=PSR12 src tests/unit
-
       - name: Run Unit Tests
         run: ./vendor/bin/phpunit
 
       - name: Run Syntax Checks
-        run: |
-          docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php7.1 parallel-lint src
-          docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php7.2 parallel-lint src
-          docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php7.3 parallel-lint src
-          docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php7.4 parallel-lint src
+        run: docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php${{ matrix.php }} phplint src

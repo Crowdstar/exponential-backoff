@@ -14,8 +14,9 @@
 /composer.phar
 /vendor/*
 
-# Ignore file phpunit.xml
-/phpunit.xml
-
 # Ignore PHPUnit files
 /.phpunit.result.cache
+/phpunit.xml
+
+# Ignore test output
+/.phplint-cache
