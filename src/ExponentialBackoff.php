@@ -97,8 +97,8 @@ class ExponentialBackoff
             }
         } while ($this->retry($result, $e));
 
-        // If you still have an exception, throw it
-        if (!empty($e)) {
+        // If you still have an exception, throw it out if needed.
+        if (!empty($e) && $this->getRetryCondition()->throwable()) {
             throw $e;
         }
 

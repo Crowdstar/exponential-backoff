@@ -3,6 +3,17 @@
 [![Latest Unstable Version](https://poser.pugx.org/Crowdstar/exponential-backoff/v/unstable.svg)](https://packagist.org/packages/crowdstar/exponential-backoff)
 [![License](https://poser.pugx.org/Crowdstar/exponential-backoff/license.svg)](https://packagist.org/packages/crowdstar/exponential-backoff)
 
+   * [Summary](#summary)
+   * [Installation](#installation)
+   * [Sample Usage](#sample-usage)
+      * [1. Retry When Return Value Is Empty](#1-retry-when-return-value-is-empty)
+      * [2. Retry When Certain Exception Thrown Out](#2-retry-when-certain-exception-thrown-out)
+         * [Don't Throw Out an Exception When Finally Failed](#dont-throw-out-an-exception-when-finally-failed)
+      * [3. Retry When Customized Condition Met](#3-retry-when-customized-condition-met)
+      * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
+      * [5. To Disable Exponential Backoff Temporarily](#5-to-disable-exponential-backoff-temporarily)
+   * [Sample Scripts](#sample-scripts)
+
 # Summary
 
 Exponential back-offs prevent overloading an unavailable service by doubling the timeout each iteration. This class uses
@@ -65,6 +76,39 @@ try {
 ?>
 ```
 
+### Don't Throw Out an Exception When Finally Failed
+
+When method call _MyClass::fetchData()_ finally fails with an exception caught, we can silence the exception without
+throwing it out by overriding method _AbstractRetryCondition::throwable()_:
+
+```php
+<?php
+use CrowdStar\Backoff\AbstractRetryCondition;
+use CrowdStar\Backoff\ExponentialBackoff;
+
+$backoff = new ExponentialBackoff(
+    new class extends AbstractRetryCondition {
+        public function throwable(): bool
+        {
+            return false;
+        }
+        public function met($result, ?Exception $e): bool
+        {
+            return (empty($e) || (!($e instanceof Exception)));
+        }
+    }
+);
+
+$backoff->run(
+    function () {
+        return MyClass::fetchData();
+    }
+);
+?>
+```
+
+If needed, you can have more complex logic defined when overriding method _AbstractRetryCondition::throwable()_.
+
 ## 3. Retry When Customized Condition Met
 
 Following code is to try to fetch some non-empty data back with method _MyClass::fetchData()_. This piece of code works
@@ -114,9 +158,7 @@ $backoff = new ExponentialBackoff(
     new class extends AbstractRetryCondition {
         public function met($result, ?Exception $e): bool
         {
-            $exception = $this->getException();
-
-            return (empty($e) || (!($e instanceof $exception)));
+            return (empty($e) || (!($e instanceof Exception)));
         }
     }
 );

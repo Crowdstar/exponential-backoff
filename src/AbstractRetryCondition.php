@@ -30,6 +30,21 @@ use Exception;
 abstract class AbstractRetryCondition
 {
     /**
+     * When the caller finally fails with an exception caught, this method tells if the exception should be thrown out
+     * or not.
+     *
+     * Saying that you are creating a customized condition where exceptions are thrown out. In this case, you can use
+     * this method to decide if the exception should be thrown out (when finally failed), or when to throw out the
+     * exception.
+     *
+     * @return bool
+     */
+    public function throwable(): bool
+    {
+        return true;
+    }
+
+    /**
      * Don't retry if conditions met.
      *
      * @param mixed $result
