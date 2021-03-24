@@ -33,6 +33,8 @@ use Swoole\Coroutine;
  */
 class ExponentialBackoff
 {
+    public const DEFAULT_MAX_ATTEMPTS = 4;
+
     public const TYPE_MICROSECONDS = 1;
     public const TYPE_SECONDS      = 2;
 
@@ -54,7 +56,7 @@ class ExponentialBackoff
     /**
      * @var int
      */
-    protected $maxAttempts = 4;
+    protected $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
 
     /**
      * @var int
@@ -176,17 +178,17 @@ class ExponentialBackoff
      */
     protected function retry($result, ?\Exception $e): bool
     {
-        if ($this->getCurrentAttempts() < $this->getMaxAttempts()) {
-            if ($this->getRetryCondition()->met($result, $e)) {
-                return false;
-            }
-
-            $this->sleep();
-
-            return true;
+        if ($this->getRetryCondition()->met($result, $e)) {
+            return false;
         }
 
-        return false;
+        if ($this->getCurrentAttempts() >= $this->getMaxAttempts()) {
+            return false;
+        }
+
+        $this->sleep();
+
+        return true;
     }
 
     /**

@@ -32,32 +32,40 @@ use PHPUnit\Framework\TestCase;
  */
 class CustomizedConditionTest extends TestCase
 {
+    protected const MAX_ATTEMPTS = ExponentialBackoff::DEFAULT_MAX_ATTEMPTS;
+
+    public function dataBackoff(): array
+    {
+        return [
+            [
+                'maxAttempts' => 1,
+                'message'     => 'Maximum # of attempts is 1 (exponential backoff disabled)',
+            ],
+            [
+                'maxAttempts' => 2,
+                'message'     => 'Maximum # of attempts is 2',
+            ],
+            [
+                'maxAttempts' => self::MAX_ATTEMPTS,
+                'message'     => 'Maximum # of attempts is 4',
+            ],
+        ];
+    }
+
     /**
      * The $backoff object in this test is the same as the one in the next method self::testUnthrowableException(),
      * except that method $backoff->throwable() returns TRUE.
      *
+     * @dataProvider dataBackoff
      * @covers \CrowdStar\Backoff\AbstractRetryCondition::throwable()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testThrowableException()
+    public function testThrowableException(int $maxAttempts)
     {
-        $helper  = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(4);
-        $backoff = (new ExponentialBackoff(
-            new class extends AbstractRetryCondition {
-                public function throwable(): bool
-                {
-                    // This tells the caller to throw out the exception when finally failed.
-                    return true;
-                }
-                public function met($result, ?Exception $e): bool
-                {
-                    return (empty($e) || (!($e instanceof Exception)));
-                }
-            }
-        ));
+        $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(self::MAX_ATTEMPTS);
 
         $this->expectException(Exception::class); // Next function call will through out an exception.
-        $backoff->run(
+        $this->getBackoff($maxAttempts, false)->run(
             function () use ($helper) {
                 return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
             }
@@ -68,31 +76,52 @@ class CustomizedConditionTest extends TestCase
      * The $backoff object in this test is the same as the one in the previous method self::testThrowableException(),
      * except that method $backoff->throwable() returns FALSE.
      *
+     * @dataProvider dataBackoff
      * @covers \CrowdStar\Backoff\AbstractRetryCondition::throwable()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testUnthrowableException()
+    public function testUnthrowableException(int $maxAttempts)
     {
-        $helper  = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(4);
-        $backoff = (new ExponentialBackoff(
-            new class extends AbstractRetryCondition {
-                public function throwable(): bool
-                {
-                    // This tells the caller NOT to throw out the exception when finally failed.
-                    return false;
-                }
-                public function met($result, ?Exception $e): bool
-                {
-                    return (empty($e) || (!($e instanceof Exception)));
-                }
-            }
-        ));
-
-        $this->addToAssertionCount(1); // Since there is no assertions in this test, we manually add the count by 1.
-        $backoff->run(
+        $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(self::MAX_ATTEMPTS);
+        $this->getBackoff($maxAttempts, true)->run(
             function () use ($helper) {
                 return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
             }
         );
+
+        $this->addToAssertionCount(1); // Since there is no assertions in this test, we manually add the count by 1.
+    }
+
+    /**
+     * @param bool $silenceWhenFailed To hide or throw out the exception when finally failed.
+     */
+    protected function getBackoff(int $maxAttempts, bool $silenceWhenFailed): ExponentialBackoff
+    {
+        $backoff = (new ExponentialBackoff(
+            new class($silenceWhenFailed) extends AbstractRetryCondition {
+                protected $silenceWhenFailed;
+                protected $throwable = true;
+                public function __construct(bool $silenceWhenFailed)
+                {
+                    $this->silenceWhenFailed = $silenceWhenFailed;
+                }
+                public function throwable(): bool
+                {
+                    // This tells the caller to hide or throw out the exception when finally failed.
+                    return $this->throwable;
+                }
+                public function met($result, ?Exception $e): bool
+                {
+                    if (empty($e) || (!($e instanceof Exception))) {
+                        return true;
+                    }
+                    $this->throwable = !$this->silenceWhenFailed;
+                    return false;
+                }
+            }
+        ));
+        $backoff->setMaxAttempts($maxAttempts);
+
+        return $backoff;
     }
 }
