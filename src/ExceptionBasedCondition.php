@@ -20,7 +20,9 @@ declare(strict_types=1);
 
 namespace CrowdStar\Backoff;
 
+use Exception as BaseException;
 use ReflectionClass;
+use Throwable;
 
 /**
  * Class ExceptionBasedCondition
@@ -71,17 +73,26 @@ class ExceptionBasedCondition extends AbstractRetryCondition
      */
     public function setException(string $exception): self
     {
-        if (!class_exists($exception)) {
-            throw new Exception("Exception class {$exception} not exists");
+        if (class_exists($exception)) {
+            $class = new ReflectionClass($exception);
+            if ((BaseException::class != $class->getName()) && !$class->isSubclassOf(BaseException::class)) {
+                throw new Exception("{$exception} objects are not instances of class \Exception");
+            }
+
+            $this->exception = $exception;
+
+            return $this;
+        } elseif (interface_exists($exception)) {
+            $class = new ReflectionClass($exception);
+            if ((Throwable::class != $class->getName()) && !$class->implementsInterface(Throwable::class)) {
+                throw new Exception("{$exception} objects are not instances of interface \Throwable");
+            }
+
+            $this->exception = $exception;
+
+            return $this;
         }
 
-        $class = new ReflectionClass($exception);
-        if ((\Exception::class != $class->getName()) && !$class->isSubclassOf(\Exception::class)) {
-            throw new Exception("{$exception} objects are not instance of class \Exception");
-        }
-
-        $this->exception = $exception;
-
-        return $this;
+        throw new Exception("Class/interface \"{$exception}\" does not exist");
     }
 }

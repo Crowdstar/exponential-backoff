@@ -20,6 +20,7 @@ declare(strict_types=1);
 
 namespace CrowdStar\Tests\Backoff;
 
+use ArrayAccess;
 use BadFunctionCallException;
 use BadMethodCallException;
 use CrowdStar\Backoff\ExceptionBasedCondition;
@@ -29,6 +30,7 @@ use Exception;
 use LogicException;
 use PHPUnit\Framework\ExpectationFailedException;
 use PHPUnit\Framework\TestCase;
+use Throwable;
 use TypeError;
 
 /**
@@ -43,6 +45,11 @@ class ExceptionBasedConditionTest extends TestCase
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
         // Exception > LogicException > BadFunctionCallException > BadMethodCallException
         return [
+            [
+                Throwable::class,
+                Exception::class,
+                'try to catch a throwable object that implements interface \throwable.',
+            ],
             [
                 Exception::class,
                 Exception::class,
@@ -180,6 +187,9 @@ class ExceptionBasedConditionTest extends TestCase
     {
         return [
             [
+                Throwable::class,
+            ],
+            [
                 Exception::class,
             ],
             [
@@ -213,15 +223,19 @@ class ExceptionBasedConditionTest extends TestCase
     {
         return [
             [
-                'Exception class \CrowdStar\Backoff\a_non_existing_class_name not exists',
+                'ArrayAccess objects are not instances of interface \Throwable',
+                ArrayAccess::class,
+            ],
+            [
+                'Class/interface "\CrowdStar\Backoff\a_non_existing_class_name" does not exist',
                 '\CrowdStar\Backoff\a_non_existing_class_name',
             ],
             [
-                'Error objects are not instance of class \Exception',
+                'Error objects are not instances of class \Exception',
                 Error::class,
             ],
             [
-                'TypeError objects are not instance of class \Exception',
+                'TypeError objects are not instances of class \Exception',
                 TypeError::class,
             ],
         ];
