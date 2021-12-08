@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        php: ["7.1", "7.2", "7.3", "7.4", "8.0"]
+        php: ["7.1", "7.2", "7.3", "7.4", "8.0", "8.1"]
 
     name: Tests Under PHP ${{ matrix.php }}
 
@@ -34,4 +34,11 @@ jobs:
         run: ./vendor/bin/phpunit
 
       - name: Run Syntax Checks
-        run: docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php${{ matrix.php }} phplint src
+        run: |
+          if [ ${{ matrix.php }} == '7.3' ] ; then
+            docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:1.60.0-php7.3        phplint src
+          elif [ ${{ matrix.php }} == '8.1' ] ; then
+            echo "Skip syntax check for now since Docker image jakzal/phpqa:php8.1 does not exist."
+          else
+            docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php${{ matrix.php }} phplint src
+          fi
