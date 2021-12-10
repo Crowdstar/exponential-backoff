@@ -45,9 +45,16 @@ class Helper
     protected $currentAttempts = 1;
 
     /**
-     * @var string
+     * @var string[]
      */
-    protected $exception;
+    protected $exceptions;
+
+    /**
+     * A pointer pointing to the exception to be thrown out from array $this->exceptions.
+     *
+     * @var int
+     */
+    protected $idxException = 0;
 
     /**
      * To return an empty string back when not yet reached expected # of failed attempts, otherwise return the value.
@@ -70,7 +77,7 @@ class Helper
     {
         if (!$this->reachExpectedAttempts()) {
             $exception = $this->getException();
-            throw new $exception('an exception thrown out from class \CrowdStar\Tests\Backoff\Helper');
+            throw new $exception('an exception thrown out from class \\' . __CLASS__);
         };
 
         return $this->getValue();
@@ -92,9 +99,6 @@ class Helper
         return $reachExpectedAttempts;
     }
 
-    /**
-     * @see AttemptsTrait::$currentAttempts
-     */
     public function reset(): self
     {
         $this->currentAttempts = 1;
@@ -133,12 +137,33 @@ class Helper
 
     public function getException(): string
     {
-        return $this->exception;
+        if (empty($this->exceptions)) {
+            throw new Exception('No exceptions defined.');
+        }
+
+        $exception = $this->exceptions[$this->idxException];
+        // Now let's move the pointer to the next exception in the array.
+        $this->idxException = ($this->idxException + 1) % count($this->exceptions);
+        return $exception;
     }
 
     public function setException(string $exception): self
     {
-        $this->exception = $exception;
+        return $this->setExceptions([$exception]);
+    }
+
+    /**
+     * @return string[]
+     */
+    public function getExceptions(): array
+    {
+        return $this->exceptions;
+    }
+
+    public function setExceptions(array $exceptions): self
+    {
+        $this->exceptions   = $exceptions;
+        $this->idxException = 0;
 
         return $this;
     }

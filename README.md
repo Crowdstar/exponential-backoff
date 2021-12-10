@@ -7,7 +7,7 @@
    * [Installation](#installation)
    * [Sample Usage](#sample-usage)
       * [1. Retry When Return Value Is Empty](#1-retry-when-return-value-is-empty)
-      * [2. Retry When Certain Exception Thrown Out](#2-retry-when-certain-exception-thrown-out)
+      * [2. Retry When Certain Exceptions Thrown Out](#2-retry-when-certain-exceptions-thrown-out)
          * [Don't Throw Out an Exception When Finally Failed](#dont-throw-out-an-exception-when-finally-failed)
       * [3. Retry When Customized Condition Met](#3-retry-when-customized-condition-met)
       * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
@@ -52,26 +52,30 @@ $result = (new ExponentialBackoff(new EmptyValueCondition()))->run(
 ?>
 ```
 
-## 2. Retry When Certain Exception Thrown Out
+## 2. Retry When Certain Exceptions Thrown Out
 
 Following code is to try to fetch some data back with method _MyClass::fetchData()_, which may throw out exceptions.
 This piece of code will try a few more times (by default 4) until either we get some data back, or we have reached
 maximum numbers of retries.
+
+NOTE: Internal PHP errors (class [Error](https://www.php.net/error)) won't trigger exponential backoff. They should be
+fixed manually.
 
 ```php
 <?php
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 
-$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class));
+// Allow to catch multiple types of exceptions and throwable objects.
+$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
 try {
     $result = $backoff->run(
         function () {
             return MyClass::fetchData();
         }
     );
-} catch (Exception $e) {
-    // Handle the exception here.
+} catch (Throwable $t) {
+    // Handle the errors here.
 }
 ?>
 ```
@@ -153,7 +157,7 @@ use CrowdStar\Backoff\ExponentialBackoff;
 
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
-$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class));
+$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
 $backoff = new ExponentialBackoff(
     new class extends AbstractRetryCondition {
         public function met($result, ?Exception $e): bool

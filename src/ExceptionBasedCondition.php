@@ -51,11 +51,19 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     /**
      * @inheritdoc
      */
-    public function met($result, ?\Exception $e): bool
+    public function met($result, ?BaseException $e): bool
     {
-        $exception = $this->getException();
+        if (empty($e)) {
+            return true;
+        }
 
-        return (empty($e) || (!($e instanceof $exception)));
+        foreach ($this->getExceptions() as $exception) {
+            if ($e instanceof $exception) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -102,11 +110,11 @@ class ExceptionBasedCondition extends AbstractRetryCondition
 
             if (class_exists($exception)) {
                 if ((BaseException::class != $class->getName()) && !$class->isSubclassOf(BaseException::class)) {
-                    throw new Exception("{$exception} objects are not instances of class \Exception");
+                    throw new Exception("{$exception} objects are not instances of class \\" . BaseException::class);
                 }
             } else {
                 if ((Throwable::class != $class->getName()) && !$class->implementsInterface(Throwable::class)) {
-                    throw new Exception("{$exception} objects are not instances of interface \Throwable");
+                    throw new Exception("{$exception} objects are not instances of interface \\" . Throwable::class);
                 }
             }
 

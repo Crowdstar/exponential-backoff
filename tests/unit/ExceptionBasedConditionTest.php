@@ -158,12 +158,11 @@ class ExceptionBasedConditionTest extends TestCase
      */
     public function testUnsuccessfulRetries(int $expectedFailedAttempts, int $maxAttempts)
     {
-        $e       = null;
-        $helper  = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts($expectedFailedAttempts);
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(Exception::class)))
             ->setMaxAttempts($maxAttempts);
-
         self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+
+        $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts($expectedFailedAttempts);
         try {
             $backoff->run(
                 function () use ($helper) {
@@ -171,10 +170,10 @@ class ExceptionBasedConditionTest extends TestCase
                 }
             );
         } catch (Exception $e) {
-            // Nothing to do here. Exceptions will be evaluates in the finally block.
+            // Nothing to do here. Exceptions will be evaluated in the "finally" block.
         } finally {
             self::assertInstanceOf(Exception::class, $e);
-            self::assertSame('an exception thrown out from class \CrowdStar\Tests\Backoff\Helper', $e->getMessage());
+            self::assertSame('an exception thrown out from class \\' . Helper::class, $e->getMessage());
             self::assertSame(
                 $maxAttempts,
                 $backoff->getCurrentAttempts(),
@@ -216,9 +215,6 @@ class ExceptionBasedConditionTest extends TestCase
         self::assertSame($exception, (new ExceptionBasedCondition($exception))->getException());
     }
 
-    /**
-     * @return array
-     */
     public function dataSetExceptionWithExceptions(): array
     {
         return [
