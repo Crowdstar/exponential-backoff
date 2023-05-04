@@ -3,16 +3,16 @@
 [![Latest Unstable Version](https://poser.pugx.org/Crowdstar/exponential-backoff/v/unstable.svg)](https://packagist.org/packages/crowdstar/exponential-backoff)
 [![License](https://poser.pugx.org/Crowdstar/exponential-backoff/license.svg)](https://packagist.org/packages/crowdstar/exponential-backoff)
 
-   * [Summary](#summary)
-   * [Installation](#installation)
-   * [Sample Usage](#sample-usage)
-      * [1. Retry When Return Value Is Empty](#1-retry-when-return-value-is-empty)
-      * [2. Retry When Certain Exceptions Thrown Out](#2-retry-when-certain-exceptions-thrown-out)
-         * [Don't Throw Out an Exception When Finally Failed](#dont-throw-out-an-exception-when-finally-failed)
-      * [3. Retry When Customized Condition Met](#3-retry-when-customized-condition-met)
-      * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
-      * [5. To Disable Exponential Backoff Temporarily](#5-to-disable-exponential-backoff-temporarily)
-   * [Sample Scripts](#sample-scripts)
+* [Summary](#summary)
+* [Installation](#installation)
+* [Sample Usage](#sample-usage)
+     * [1. Retry When Return Value Is Empty](#1-retry-when-return-value-is-empty)
+     * [2. Retry When Certain Exceptions Thrown Out](#2-retry-when-certain-exceptions-thrown-out)
+          * [Don't Throw Out an Exception When Finally Failed](#dont-throw-out-an-exception-when-finally-failed)
+     * [3. Retry When Customized Condition Met](#3-retry-when-customized-condition-met)
+     * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
+     * [5. To Disable Exponential Backoff Temporarily](#5-to-disable-exponential-backoff-temporarily)
+* [Sample Scripts](#sample-scripts)
 
 # Summary
 

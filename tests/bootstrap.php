@@ -17,6 +17,14 @@
 
 declare(strict_types=1);
 
+use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Reflection\Reflection;
+
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('display_startup_errors', '1');
+
+function getCurrentAttempts(ExponentialBackoff $backoff): int
+{
+    return Reflection::getProperty($backoff, 'currentAttempts');
+}

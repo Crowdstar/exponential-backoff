@@ -85,9 +85,9 @@ class ExponentialBackoffTest extends TestCase
     public function testSuccessfulRetries(Helper $helper, ExponentialBackoff $backoff, Closure $c, string $message)
     {
         $helper->reset();
-        $this->assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        $this->assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
         $this->assertSame($helper->getValue(), $backoff->run($c), $message);
-        $this->assertSame(4, $backoff->getCurrentAttempts(), 'current iteration should be 4 (after 4 attempts)');
+        $this->assertSame(4, getCurrentAttempts($backoff), 'current iteration should be 4 (after 4 attempts)');
     }
 
     public function dataDelays(): array

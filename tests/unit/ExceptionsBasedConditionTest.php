@@ -156,12 +156,12 @@ class ExceptionsBasedConditionTest extends TestCase
         $maxAttempts = 3; // Three attempts are enough for verification purpose.
         foreach ([0, 1, 2] as $expectedFailedAttempts) {
             $helper  = (new Helper())
-                ->setExceptions($exceptionsToThrow)
+                ->setExceptions(...$exceptionsToThrow)
                 ->setExpectedFailedAttempts($expectedFailedAttempts);
             $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(...$exceptionsToCatch)))
                 ->setMaxAttempts($maxAttempts);
 
-            self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+            self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
             self::assertSame(
                 $helper->getValue(),
                 $backoff->run(
@@ -173,7 +173,7 @@ class ExceptionsBasedConditionTest extends TestCase
             );
             self::assertSame(
                 $expectedFailedAttempts + 1,
-                $backoff->getCurrentAttempts(),
+                getCurrentAttempts($backoff),
                 'total # of attempts made should be one time more than failed attempts'
             );
         }
@@ -252,9 +252,11 @@ class ExceptionsBasedConditionTest extends TestCase
     ) {
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(...$exceptionsToCatch)))
             ->setMaxAttempts($maxAttempts);
-        self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
 
-        $helper = (new Helper())->setExceptions($exceptionsToThrow)->setExpectedFailedAttempts($expectedFailedAttempts);
+        $helper = (new Helper())
+            ->setExceptions(...$exceptionsToThrow)
+            ->setExpectedFailedAttempts($expectedFailedAttempts);
         try {
             $backoff->run(
                 function () use ($helper) {
@@ -272,7 +274,7 @@ class ExceptionsBasedConditionTest extends TestCase
             self::assertSame('an exception thrown out from class \\' . Helper::class, $t->getMessage());
             self::assertSame(
                 $maxAttempts,
-                $backoff->getCurrentAttempts(),
+                getCurrentAttempts($backoff),
                 'maximum number of allowed attempts have been made but all failed with exceptions thrown out'
             );
         }
@@ -284,27 +286,27 @@ class ExceptionsBasedConditionTest extends TestCase
             // Single type of throwable objects.
             // Same as those in method \CrowdStar\Tests\Backoff\ExceptionBasedConditionTest::dataSetException().
             [
-                [Throwable::class],
+                Throwable::class,
             ],
             [
-                [Exception::class],
+                Exception::class,
             ],
             [
-                [LogicException::class],
+                LogicException::class,
             ],
             [
-                [BadFunctionCallException::class],
+                BadFunctionCallException::class,
             ],
             [
-                [BadMethodCallException::class],
+                BadMethodCallException::class,
             ],
             [
-                [ExpectationFailedException::class], // Requires at least 1 parameter in the constructor method.
+                ExpectationFailedException::class, // Requires at least 1 parameter in the constructor method.
             ],
 
             // Multiple types of throwable objects.
             [
-                [Throwable::class, Exception::class, LogicException::class],
+                Throwable::class, Exception::class, LogicException::class,
             ],
         ];
     }
@@ -313,7 +315,7 @@ class ExceptionsBasedConditionTest extends TestCase
      * @dataProvider dataSetExceptions
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setExceptions()
      */
-    public function testSetExceptions(array $exceptions): void
+    public function testSetExceptions(string ...$exceptions): void
     {
         self::assertSame($exceptions, (new ExceptionBasedCondition(...$exceptions))->getExceptions());
     }

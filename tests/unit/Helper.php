@@ -149,18 +149,10 @@ class Helper
 
     public function setException(string $exception): self
     {
-        return $this->setExceptions([$exception]);
+        return $this->setExceptions($exception);
     }
 
-    /**
-     * @return string[]
-     */
-    public function getExceptions(): array
-    {
-        return $this->exceptions;
-    }
-
-    public function setExceptions(array $exceptions): self
+    public function setExceptions(string ...$exceptions): self
     {
         $this->exceptions   = $exceptions;
         $this->idxException = 0;

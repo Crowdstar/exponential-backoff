@@ -146,6 +146,9 @@ class ExponentialBackoff
         return $this;
     }
 
+    /**
+     * @deprecated Will be removed in 4.0.
+     */
     public function getCurrentAttempts(): int
     {
         return $this->currentAttempts;
@@ -182,7 +185,7 @@ class ExponentialBackoff
             return false;
         }
 
-        if ($this->getCurrentAttempts() >= $this->getMaxAttempts()) {
+        if ($this->currentAttempts >= $this->getMaxAttempts()) {
             return false;
         }
 
@@ -198,7 +201,7 @@ class ExponentialBackoff
     {
         switch ($this->getType()) {
             case self::TYPE_MICROSECONDS:
-                $microSeconds = self::getTimeoutMicroseconds($this->getCurrentAttempts());
+                $microSeconds = self::getTimeoutMicroseconds($this->currentAttempts);
                 switch ($this->sapi) {
                     case self::SAPI_SWOOLE:
                         // Minimum execution delay in Swoole is 1ms.
@@ -210,7 +213,7 @@ class ExponentialBackoff
                 }
                 break;
             case self::TYPE_SECONDS:
-                $seconds = self::getTimeoutSeconds($this->getCurrentAttempts());
+                $seconds = self::getTimeoutSeconds($this->currentAttempts);
                 switch ($this->sapi) {
                     case self::SAPI_SWOOLE:
                         // Minimum execution delay in Swoole is 1ms.

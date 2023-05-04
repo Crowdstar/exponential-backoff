@@ -108,12 +108,12 @@ class NullConditionTest extends TestCase
         Closure $c,
         string $message
     ) {
-        self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
         self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
         self::assertSame($expectedValue, $backoff->run($c), $message);
         self::assertSame(
             1,
-            $backoff->getCurrentAttempts(),
+            getCurrentAttempts($backoff),
             'current iteration should still be 1 after first attempt (no matter what has been returned)'
         );
     }
@@ -148,7 +148,7 @@ class NullConditionTest extends TestCase
      */
     public function testUnsuccessfulRetries(int $expectedMaxAttempts, ExponentialBackoff $backoff)
     {
-        self::assertSame(1, $backoff->getCurrentAttempts(), 'current iteration should be 1 (not yet started)');
+        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
         self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
 
         $e = null;
@@ -159,12 +159,12 @@ class NullConditionTest extends TestCase
                 }
             );
         } catch (Exception $e) {
-            // Nothing to do here. Exceptions will be evaluates in the finally block.
+            // Nothing to do here. Exceptions will be evaluated in the finally block.
         } finally {
             self::assertInstanceOf(Exception::class, $e);
             self::assertSame(
                 1,
-                $backoff->getCurrentAttempts(),
+                getCurrentAttempts($backoff),
                 'current iteration should still be 1 after first attempt (no matter what has been returned)'
             );
         }
