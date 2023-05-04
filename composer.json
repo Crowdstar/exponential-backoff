@@ -7,8 +7,8 @@
         "php": ">=7.1"
     },
     "require-dev": {
-        "phpunit/phpunit": "~7.0 || ~8.0 || ~9.0",
-        "swoole/ide-helper": "@dev"
+        "phpunit/phpunit": ">=7.0",
+        "swoole/ide-helper": "~5.0"
     },
     "suggest": {
         "ext-swoole": "Allow to do exponential backoff in non-blocking mode in Swoole"
