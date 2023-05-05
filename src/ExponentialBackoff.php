@@ -70,9 +70,21 @@ class ExponentialBackoff
      */
     protected $retryCondition;
 
+    /**
+     * @throws Exception
+     */
     public function __construct(AbstractRetryCondition $retryCondition, int $sapi = 0)
     {
-        if (!empty($sapi)) {
+        if ($sapi !== 0) {
+            if (($sapi !== self::SAPI_DEFAULT) && ($sapi !== self::SAPI_SWOOLE)) {
+                throw new Exception(
+                    sprintf(
+                        'Second parameter $sapi must be either %s::SAPI_DEFAULT or %s::SAPI_SWOOLE.',
+                        self::class,
+                        self::class
+                    )
+                );
+            }
             $this->sapi = $sapi;
         } elseif (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) {
             $this->sapi = self::SAPI_SWOOLE; // If running inside a coroutine created by Swoole.
@@ -84,8 +96,6 @@ class ExponentialBackoff
     }
 
     /**
-     * @param Closure $c
-     * @param array ...$params
      * @return mixed
      * @throws Exception
      */

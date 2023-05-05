@@ -212,7 +212,7 @@ class ExceptionBasedConditionTest extends TestCase
      */
     public function testSetException(string $exception): void
     {
-        self::assertSame($exception, (new ExceptionBasedCondition($exception))->getException());
+        self::assertSame([$exception], (new ExceptionBasedCondition($exception))->getExceptions());
     }
 
     public function dataSetExceptionWithExceptions(): array
