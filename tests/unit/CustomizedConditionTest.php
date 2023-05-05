@@ -60,11 +60,11 @@ class CustomizedConditionTest extends TestCase
      * @covers \CrowdStar\Backoff\AbstractRetryCondition::throwable()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testThrowableException(int $maxAttempts)
+    public function testThrowableException(int $maxAttempts): void
     {
         $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(self::MAX_ATTEMPTS);
 
-        $this->expectException(Exception::class); // Next function call will through out an exception.
+        $this->expectException(Exception::class); // Next function call will throw out an exception.
         $this->getBackoff($maxAttempts, false)->run(
             function () use ($helper) {
                 return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
@@ -80,7 +80,7 @@ class CustomizedConditionTest extends TestCase
      * @covers \CrowdStar\Backoff\AbstractRetryCondition::throwable()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testUnthrowableException(int $maxAttempts)
+    public function testUnthrowableException(int $maxAttempts): void
     {
         $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(self::MAX_ATTEMPTS);
         $this->getBackoff($maxAttempts, true)->run(

@@ -23,8 +23,9 @@ namespace CrowdStar\Backoff;
 use Exception;
 
 /**
- * Class NullCondition
- * Don't retry.
+ * Don't retry when doing exponential backoff.
+ *
+ * This class can be used to disable exponential backoff temporarily.
  *
  * @package CrowdStar\Backoff
  */

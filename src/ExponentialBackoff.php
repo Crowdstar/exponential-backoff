@@ -60,6 +60,8 @@ class ExponentialBackoff
 
     /**
      * @var int
+     *
+     * @todo Drop the initial value in version 4.0 (once we have method $this->>getCurrentAttempts() removed).
      */
     protected $currentAttempts = 1;
 
@@ -175,8 +177,6 @@ class ExponentialBackoff
 
     /**
      * @param mixed $result
-     * @param \Exception|null $e
-     * @return bool
      * @throws Exception
      */
     protected function retry($result, ?\Exception $e): bool

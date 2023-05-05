@@ -151,7 +151,7 @@ class ExceptionsBasedConditionTest extends TestCase
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testSuccessfulRetries(array $exceptionsToCatch, array $exceptionsToThrow, string $message)
+    public function testSuccessfulRetries(array $exceptionsToCatch, array $exceptionsToThrow, string $message): void
     {
         $maxAttempts = 3; // Three attempts are enough for verification purpose.
         foreach ([0, 1, 2] as $expectedFailedAttempts) {
@@ -249,7 +249,7 @@ class ExceptionsBasedConditionTest extends TestCase
         int $maxAttempts,
         array $exceptionsToCatch,
         array $exceptionsToThrow
-    ) {
+    ): void {
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(...$exceptionsToCatch)))
             ->setMaxAttempts($maxAttempts);
         self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');

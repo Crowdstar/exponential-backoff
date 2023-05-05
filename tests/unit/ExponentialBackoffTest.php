@@ -82,8 +82,12 @@ class ExponentialBackoffTest extends TestCase
      * @dataProvider dataSuccessfulRetries
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testSuccessfulRetries(Helper $helper, ExponentialBackoff $backoff, Closure $c, string $message)
-    {
+    public function testSuccessfulRetries(
+        Helper $helper,
+        ExponentialBackoff $backoff,
+        Closure $c,
+        string $message
+    ): void {
         $helper->reset();
         $this->assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
         $this->assertSame($helper->getValue(), $backoff->run($c), $message);
@@ -159,8 +163,12 @@ class ExponentialBackoffTest extends TestCase
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
      */
-    public function testDelays(ExponentialBackoff $backoff, float $expectedMin, float $expectedMax, string $message)
-    {
+    public function testDelays(
+        ExponentialBackoff $backoff,
+        float $expectedMin,
+        float $expectedMax,
+        string $message
+    ): void {
         $helper = new Helper();
         $start = microtime(true);
         $backoff->run(
@@ -206,7 +214,7 @@ class ExponentialBackoffTest extends TestCase
      * @dataProvider dataGetTimeoutSeconds
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
      */
-    public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout)
+    public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout): void
     {
         self::assertThat(
             ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout),
