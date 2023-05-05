@@ -101,6 +101,8 @@ class ExponentialBackoff
      */
     public function run(Closure $c, ...$params)
     {
+         $this->currentAttempts = 1; // Force to reset # of current attempts.
+
         do {
             $result = $e = null;
 

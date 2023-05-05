@@ -66,12 +66,12 @@ class ExponentialBackoffTest extends TestCase
                         }
                         public function met($result, ?Exception $e): bool
                         {
-                            return $this->helper->reachExpectedAttempts();
+                            return $this->helper->getCurrentAttempts() - 1 > $this->helper->getExpectedFailedAttempts();
                         }
                     }
                 ),
                 function () use ($helper) {
-                    return $helper->getValue();
+                    return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
                 },
                 'fetch a value after 3 failed attempts through a self-defined retry function.',
             ],
@@ -79,6 +79,10 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
+     * There are two cases covered in this test:
+     *     1. Test successful retries with exponential backoff.
+     *     2. Test reusing the same instance of ExponentialBackoff multiple times.
+     *
      * @dataProvider dataSuccessfulRetries
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
@@ -88,10 +92,14 @@ class ExponentialBackoffTest extends TestCase
         Closure $c,
         string $message
     ): void {
-        $helper->reset();
         $this->assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
-        $this->assertSame($helper->getValue(), $backoff->run($c), $message);
-        $this->assertSame(4, getCurrentAttempts($backoff), 'current iteration should be 4 (after 4 attempts)');
+
+        // Reuse the same instance of ExponentialBackoff multiple times.
+        for ($i = 0; $i < 2; $i++) {
+            $helper->reset();
+            $this->assertSame($helper->getValue(), $backoff->run($c), $message);
+            $this->assertSame(4, getCurrentAttempts($backoff), 'current iteration should be 4 (after 4 attempts)');
+        }
     }
 
     public function dataDelays(): array
