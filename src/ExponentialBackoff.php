@@ -47,7 +47,7 @@ class ExponentialBackoff
     protected $type = self::TYPE_MICROSECONDS;
 
     /**
-     * @var string
+     * @var int
      * @see \CrowdStar\Backoff\ExponentialBackoff::SAPI_DEFAULT
      * @see \CrowdStar\Backoff\ExponentialBackoff::SAPI_SWOOLE
      */
@@ -99,7 +99,7 @@ class ExponentialBackoff
      * @return mixed
      * @throws Exception
      */
-    public function run(Closure $c, ...$params)
+    public function run(Closure $c, ...$params) // @phpstan-ignore-line
     {
          $this->currentAttempts = 1; // Force to reset # of current attempts.
 
