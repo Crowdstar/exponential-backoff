@@ -8,10 +8,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Run Coding Style Checks
-        run: docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpcs -v --standard=PSR2 src tests/unit
+        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpcs -v --standard=PSR2 src tests/unit
 
       - name: Run Static Analysis
-        run: docker run --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpstan analyse --no-progress --memory-limit 2G -l 9 src
+        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpstan analyse --no-progress --memory-limit 2G -l 9 src
