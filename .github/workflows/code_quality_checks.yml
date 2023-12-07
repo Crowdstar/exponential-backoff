@@ -3,12 +3,26 @@ name: Code Quality checks
 on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
-  ci:
+  code-quality-checks:
     runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          tools: composer:v2
+          coverage: none
+
+      - name: Install dependencies
+        uses: nick-invision/retry@v2
+        with:
+          timeout_minutes: 5
+          max_attempts: 5
+          command: composer update --prefer-stable --prefer-dist --no-interaction --no-progress
 
       - name: Run Coding Style Checks
         run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpcs -v --standard=PSR2 src tests/unit
