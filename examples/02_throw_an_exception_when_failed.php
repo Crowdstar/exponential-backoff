@@ -32,10 +32,11 @@ require_once dirname(__DIR__) . '/vendor/autoload.php';
 //     $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class));
 $helper  = (new Helper())->setException(Exception::class);
-$result  = $backoff->run(
+
+/** @var string $result */
+$result = $backoff->run(
     function () use ($helper) {
         return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
     }
 );
-
 echo "result is: {$result}\n";

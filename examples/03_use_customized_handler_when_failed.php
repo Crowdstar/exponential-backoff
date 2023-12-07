@@ -38,10 +38,10 @@ $condition = new class extends AbstractRetryCondition {
 
 $backoff = new ExponentialBackoff($condition);
 
+/** @var string $result */
 $result = $backoff->run(
     function () use ($helper) {
         return $helper->getValue();
     }
 );
-
 echo "result is: {$result}\n";

@@ -49,6 +49,7 @@ $backoff
     ->setMaxAttempts(3)
     ->setMaxAttempts(4);
 
+/** @var string $result */
 $result = $backoff->run(
     function () use ($helper) {
         return $helper->getValue();
