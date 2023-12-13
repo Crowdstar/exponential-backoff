@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -31,7 +30,8 @@ use PHPUnit\Framework\TestCase;
 /**
  * Class ExponentialBackoffTest
  *
- * @package CrowdStar\Tests\Backoff
+ * @internal
+ * @coversNothing
  */
 class ExponentialBackoffTest extends TestCase
 {
@@ -58,12 +58,14 @@ class ExponentialBackoffTest extends TestCase
             [
                 $helper,
                 new ExponentialBackoff(
-                    new class ($helper) extends AbstractRetryCondition {
+                    new class($helper) extends AbstractRetryCondition {
                         protected $helper;
+
                         public function __construct(Helper $helper)
                         {
                             $this->helper = $helper;
                         }
+
                         public function met($result, ?Exception $e): bool
                         {
                             return $this->helper->getCurrentAttempts() - 1 > $this->helper->getExpectedFailedAttempts();
@@ -167,9 +169,9 @@ class ExponentialBackoffTest extends TestCase
 
     /**
      * @dataProvider dataDelays
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
     public function testDelays(
         ExponentialBackoff $backoff,
@@ -178,7 +180,7 @@ class ExponentialBackoffTest extends TestCase
         string $message
     ): void {
         $helper = new Helper();
-        $start = microtime(true);
+        $start  = microtime(true);
         $backoff->run(
             function () use ($helper) {
                 return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
@@ -187,7 +189,7 @@ class ExponentialBackoffTest extends TestCase
         $end = microtime(true);
 
         self::assertThat(
-            ($end - $start),
+            $end - $start,
             self::logicalAnd(
                 self::greaterThanOrEqual($expectedMin),
                 self::lessThanOrEqual($expectedMax)
@@ -201,21 +203,19 @@ class ExponentialBackoffTest extends TestCase
         // Test data to help to understand how timeouts are calculated, with input data in following order:
         //     ($expectedMin, $expectedMax, $iteration, $initialTimeout)
         $data = [
-            [(50 *  1), ((50 *  1) + ((50 *  1) / 10)), 1, 50],
-            [(60 *  2), ((60 *  2) + ((60 *  2) / 10)), 2, 60],
-            [(70 *  4), ((70 *  4) + ((70 *  4) / 10)), 3, 70],
+            [50 * 1, (50 * 1) + ((50 * 1) / 10), 1, 50],
+            [60 * 2, (60 * 2) + ((60 * 2) / 10), 2, 60],
+            [70 * 4, (70 * 4) + ((70 * 4) / 10), 3, 70],
 
             // Exactly same input data as above 3 ones, just to help to understand the timeouts better.
-            [ 50,  55, 1, 50],
+            [50,  55, 1, 50],
             [120, 132, 2, 60],
             [280, 308, 3, 70],
         ];
 
         // Since we are testing methods with random output, repeat tests on same data for 20 (4 * 5) times.
         $data = array_merge($data, $data, $data, $data);
-        $data = array_merge($data, $data, $data, $data, $data);
-
-        return $data;
+        return array_merge($data, $data, $data, $data, $data);
     }
 
     /**
@@ -245,27 +245,27 @@ class ExponentialBackoffTest extends TestCase
         // Test data to help to understand how timeouts are calculated, with input data in following order:
         //     ($expectedMin, $expectedMax, $iteration, $initialTimeout)
         $simpleData = [
-            [(50 *  1), ((50 *  1) + ((50 *  1) / 10)), 1, 50],
-            [(60 *  2), ((60 *  2) + ((60 *  2) / 10)), 2, 60],
-            [(70 *  4), ((70 *  4) + ((70 *  4) / 10)), 3, 70],
+            [50 * 1, (50 * 1) + ((50 * 1) / 10), 1, 50],
+            [60 * 2, (60 * 2) + ((60 * 2) / 10), 2, 60],
+            [70 * 4, (70 * 4) + ((70 * 4) / 10), 3, 70],
 
             // Exactly same input data as above 3 ones, just to help to understand the timeouts better.
-            [ 50,  55, 1, 50],
+            [50,  55, 1, 50],
             [120, 132, 2, 60],
             [280, 308, 3, 70],
         ];
 
         // Test data for simulating actual application timeouts.
         $data = [
-            [(250000 *  1), ((250000 *  1) + ((250000 *  1) / 10)), 1, 250000],
-            [(300000 *  2), ((300000 *  2) + ((300000 *  2) / 10)), 2, 300000],
-            [(350000 *  4), ((350000 *  4) + ((350000 *  4) / 10)), 3, 350000],
-            [(400000 *  8), ((400000 *  8) + ((400000 *  8) / 10)), 4, 400000],
-            [(450000 * 16), ((450000 * 16) + ((450000 * 16) / 10)), 5, 450000],
+            [250000 * 1, (250000 * 1) + ((250000 * 1) / 10), 1, 250000],
+            [300000 * 2, (300000 * 2) + ((300000 * 2) / 10), 2, 300000],
+            [350000 * 4, (350000 * 4) + ((350000 * 4) / 10), 3, 350000],
+            [400000 * 8, (400000 * 8) + ((400000 * 8) / 10), 4, 400000],
+            [450000 * 16, (450000 * 16) + ((450000 * 16) / 10), 5, 450000],
 
             // Exactly same input data as above 5 ones, just to help to understand the timeouts better.
-            [ 250000,  275000, 1, 250000],
-            [ 600000,  660000, 2, 300000],
+            [250000,  275000, 1, 250000],
+            [600000,  660000, 2, 300000],
             [1400000, 1540000, 3, 350000],
             [3200000, 3520000, 4, 400000],
             [7200000, 7920000, 5, 450000],

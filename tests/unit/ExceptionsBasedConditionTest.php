@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -38,7 +37,8 @@ use TypeError;
 /**
  * Class ExceptionsBasedConditionTest
  *
- * @package CrowdStar\Tests\Backoff
+ * @internal
+ * @coversNothing
  */
 class ExceptionsBasedConditionTest extends TestCase
 {
@@ -157,9 +157,11 @@ class ExceptionsBasedConditionTest extends TestCase
         foreach ([0, 1, 2] as $expectedFailedAttempts) {
             $helper  = (new Helper())
                 ->setExceptions(...$exceptionsToThrow)
-                ->setExpectedFailedAttempts($expectedFailedAttempts);
+                ->setExpectedFailedAttempts($expectedFailedAttempts)
+            ;
             $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(...$exceptionsToCatch)))
-                ->setMaxAttempts($maxAttempts);
+                ->setMaxAttempts($maxAttempts)
+            ;
 
             self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
             self::assertSame(
@@ -251,12 +253,14 @@ class ExceptionsBasedConditionTest extends TestCase
         array $exceptionsToThrow
     ): void {
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(...$exceptionsToCatch)))
-            ->setMaxAttempts($maxAttempts);
+            ->setMaxAttempts($maxAttempts)
+        ;
         self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
 
         $helper = (new Helper())
             ->setExceptions(...$exceptionsToThrow)
-            ->setExpectedFailedAttempts($expectedFailedAttempts);
+            ->setExpectedFailedAttempts($expectedFailedAttempts)
+        ;
         try {
             $backoff->run(
                 function () use ($helper) {

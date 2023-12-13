@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -27,8 +26,6 @@ use Throwable;
 /**
  * Class ExceptionBasedCondition
  * Do a retry if specified types of exceptions are thrown out.
- *
- * @package CrowdStar\Backoff
  */
 class ExceptionBasedCondition extends AbstractRetryCondition
 {
@@ -49,7 +46,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     }
 
     /**
-     * @inheritdoc
+     * {@inheritdoc}
      */
     public function met($result, ?BaseException $e): bool
     {
@@ -67,7 +64,6 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     }
 
     /**
-     * @return string
      * @deprecated This will be removed in the next major version. Use {@see self::getExceptions} instead.
      * @see \CrowdStar\Backoff\ExceptionBasedCondition::getExceptions()
      */
@@ -109,11 +105,11 @@ class ExceptionBasedCondition extends AbstractRetryCondition
             $class = new ReflectionClass($exception);
 
             if (class_exists($exception)) {
-                if ((BaseException::class != $class->getName()) && !$class->isSubclassOf(BaseException::class)) {
+                if (($class->getName() != BaseException::class) && !$class->isSubclassOf(BaseException::class)) {
                     throw new Exception("{$exception} objects are not instances of class \\" . BaseException::class);
                 }
             } else {
-                if ((Throwable::class != $class->getName()) && !$class->implementsInterface(Throwable::class)) {
+                if (($class->getName() != Throwable::class) && !$class->implementsInterface(Throwable::class)) {
                     throw new Exception("{$exception} objects are not instances of interface \\" . Throwable::class);
                 }
             }

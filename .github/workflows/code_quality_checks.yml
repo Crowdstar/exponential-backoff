@@ -25,7 +25,7 @@ jobs:
           command: composer update --prefer-stable --prefer-dist --no-interaction --no-progress
 
       - name: Run Coding Style Checks
-        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpcs -v --standard=PSR2 src tests/unit
+        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 php-cs-fixer fix --dry-run
 
       - name: Run Static Analysis
         run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpstan analyse --no-progress --memory-limit 2G -l 9 examples src

@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -26,8 +25,6 @@ use Exception;
  * Class Helper.
  *
  * Used for unit tests and by sample PHP scripts under folder /examples.
- *
- * @package CrowdStar\Backoff
  */
 class Helper
 {
@@ -63,7 +60,7 @@ class Helper
     {
         if (!$this->reachExpectedAttempts()) {
             return '';
-        };
+        }
 
         return $this->getValue();
     }
@@ -78,7 +75,7 @@ class Helper
         if (!$this->reachExpectedAttempts()) {
             $exception = $this->getException();
             throw new $exception('an exception thrown out from class \\' . __CLASS__);
-        };
+        }
 
         return $this->getValue();
     }
@@ -90,7 +87,7 @@ class Helper
     public function reachExpectedAttempts(): bool
     {
         if (!defined('UNDER_PHPUNIT') || !UNDER_PHPUNIT) {
-            echo "# of attempts made: ", $this->currentAttempts, "\n";
+            echo '# of attempts made: ', $this->currentAttempts, "\n";
         }
 
         $reachExpectedAttempts = ($this->getCurrentAttempts() > $this->getExpectedFailedAttempts());
@@ -128,13 +125,6 @@ class Helper
         return $this->currentAttempts;
     }
 
-    protected function increaseCurrentAttempts(): self
-    {
-        $this->currentAttempts++;
-
-        return $this;
-    }
-
     public function getException(): string
     {
         if (empty($this->exceptions)) {
@@ -156,6 +146,13 @@ class Helper
     {
         $this->exceptions   = $exceptions;
         $this->idxException = 0;
+
+        return $this;
+    }
+
+    protected function increaseCurrentAttempts(): self
+    {
+        $this->currentAttempts++;
 
         return $this;
     }

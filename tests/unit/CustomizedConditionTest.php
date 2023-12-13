@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -28,7 +27,8 @@ use PHPUnit\Framework\TestCase;
 /**
  * Class CustomizedConditionTest
  *
- * @package CrowdStar\Tests\Backoff
+ * @internal
+ * @coversNothing
  */
 class CustomizedConditionTest extends TestCase
 {
@@ -100,16 +100,20 @@ class CustomizedConditionTest extends TestCase
         $backoff = (new ExponentialBackoff(
             new class($silenceWhenFailed) extends AbstractRetryCondition {
                 protected $silenceWhenFailed;
+
                 protected $throwable = true;
+
                 public function __construct(bool $silenceWhenFailed)
                 {
                     $this->silenceWhenFailed = $silenceWhenFailed;
                 }
+
                 public function throwable(): bool
                 {
                     // This tells the caller to hide or throw out the exception when finally failed.
                     return $this->throwable;
                 }
+
                 public function met($result, ?Exception $e): bool
                 {
                     if (empty($e) || (!($e instanceof Exception))) {

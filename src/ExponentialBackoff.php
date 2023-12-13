@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -28,17 +27,17 @@ use Swoole\Coroutine;
  *
  * This class uses an exponential back-off algorithm to calculate the timeout for the next request. Exponential
  * back-offs prevent overloading an unavailable service by doubling the timeout each iteration.
- *
- * @package CrowdStar\Backoff
  */
 class ExponentialBackoff
 {
     public const DEFAULT_MAX_ATTEMPTS = 4;
 
     public const TYPE_MICROSECONDS = 1;
+
     public const TYPE_SECONDS      = 2;
 
     protected const SAPI_DEFAULT = 1;
+
     protected const SAPI_SWOOLE  = 2;
 
     /**
@@ -77,13 +76,7 @@ class ExponentialBackoff
     {
         if ($sapi !== 0) {
             if (($sapi !== self::SAPI_DEFAULT) && ($sapi !== self::SAPI_SWOOLE)) {
-                throw new Exception(
-                    sprintf(
-                        'Second parameter $sapi must be either %s::SAPI_DEFAULT or %s::SAPI_SWOOLE.',
-                        self::class,
-                        self::class
-                    )
-                );
+                throw new Exception(sprintf('Second parameter $sapi must be either %s::SAPI_DEFAULT or %s::SAPI_SWOOLE.', self::class, self::class));
             }
             $this->sapi = $sapi;
         } elseif (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) {
@@ -101,7 +94,7 @@ class ExponentialBackoff
      */
     public function run(Closure $c, ...$params) // @phpstan-ignore-line
     {
-         $this->currentAttempts = 1; // Force to reset # of current attempts.
+        $this->currentAttempts = 1; // Force to reset # of current attempts.
 
         do {
             $result = $e = null;
@@ -168,13 +161,6 @@ class ExponentialBackoff
         return $this->currentAttempts;
     }
 
-    protected function increaseCurrentAttempts(): self
-    {
-        $this->currentAttempts++;
-
-        return $this;
-    }
-
     public function getRetryCondition(): AbstractRetryCondition
     {
         return $this->retryCondition;
@@ -183,6 +169,32 @@ class ExponentialBackoff
     public function setRetryCondition(AbstractRetryCondition $retryCondition): self
     {
         $this->retryCondition = $retryCondition;
+
+        return $this;
+    }
+
+    /**
+     * Get the next timeout in seconds.
+     */
+    public static function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
+    {
+        return (int) (self::getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
+    }
+
+    /**
+     * Get the next timeout in microseconds.
+     */
+    public static function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
+    {
+        $timeout = $initialTimeout * (1 << --$iteration);
+
+        // We throw in some randomness here to try to prevent connections from colliding
+        return $timeout + rand(0, $timeout / 10);
+    }
+
+    protected function increaseCurrentAttempts(): self
+    {
+        $this->currentAttempts++;
 
         return $this;
     }
@@ -241,24 +253,5 @@ class ExponentialBackoff
         }
 
         return $this->increaseCurrentAttempts();
-    }
-
-    /**
-     * Get the next timeout in seconds.
-     */
-    public static function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
-    {
-        return (int) (self::getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
-    }
-
-    /**
-     * Get the next timeout in microseconds.
-     */
-    public static function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
-    {
-        $timeout = $initialTimeout * (1 << --$iteration);
-
-        // We throw in some randomness here to try to prevent connections from colliding
-        return ($timeout + rand(0, $timeout / 10));
     }
 }

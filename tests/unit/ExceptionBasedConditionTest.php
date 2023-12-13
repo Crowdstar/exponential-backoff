@@ -1,6 +1,5 @@
 <?php
-
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,7 +13,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
 declare(strict_types=1);
 
@@ -36,7 +35,8 @@ use TypeError;
 /**
  * Class ExceptionBasedCondition
  *
- * @package CrowdStar\Tests\Backoff
+ * @internal
+ * @coversNothing
  */
 class ExceptionBasedConditionTest extends TestCase
 {
@@ -117,9 +117,11 @@ class ExceptionBasedConditionTest extends TestCase
         foreach ([0, 1, 2] as $expectedFailedAttempts) {
             $helper  = (new Helper())
                 ->setException($exceptionToThrow)
-                ->setExpectedFailedAttempts($expectedFailedAttempts);
+                ->setExpectedFailedAttempts($expectedFailedAttempts)
+            ;
             $backoff = (new ExponentialBackoff(new ExceptionBasedCondition($exceptionToCatch)))
-                ->setMaxAttempts($maxAttempts);
+                ->setMaxAttempts($maxAttempts)
+            ;
 
             self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
             self::assertSame(
@@ -159,7 +161,8 @@ class ExceptionBasedConditionTest extends TestCase
     public function testUnsuccessfulRetries(int $expectedFailedAttempts, int $maxAttempts): void
     {
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(Exception::class)))
-            ->setMaxAttempts($maxAttempts);
+            ->setMaxAttempts($maxAttempts)
+        ;
         self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
 
         $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts($expectedFailedAttempts);

@@ -1,6 +1,6 @@
 #!/usr/bin/env php
 <?php
-/**************************************************************************
+/**
  * Copyright 2018 Glu Mobile Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,9 +14,9 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *************************************************************************/
+ */
 
-/**
+/*
  * Sample code to show what options are available when doing exponential backoff with the package.
  */
 
@@ -31,7 +31,7 @@ use CrowdStar\Tests\Backoff\Helper;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 $helper    = new Helper();
-$condition = new class extends AbstractRetryCondition {
+$condition = new class() extends AbstractRetryCondition {
     public function met($result, ?Exception $e): bool
     {
         return $GLOBALS['helper']->reachExpectedAttempts();
@@ -47,7 +47,8 @@ $backoff
     ->setType(ExponentialBackoff::TYPE_SECONDS)
     ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
     ->setMaxAttempts(3)
-    ->setMaxAttempts(4);
+    ->setMaxAttempts(4)
+;
 
 /** @var string $result */
 $result = $backoff->run(
