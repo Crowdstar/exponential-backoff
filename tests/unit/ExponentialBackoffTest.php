@@ -35,6 +35,9 @@ use PHPUnit\Framework\TestCase;
  */
 class ExponentialBackoffTest extends TestCase
 {
+    /**
+     * @return array<array{0: Helper, 1: ExponentialBackoff, 2: Closure, 3: string}>
+     */
     public function dataSuccessfulRetries(): array
     {
         $helper = (new Helper())->setException(Exception::class);
@@ -59,6 +62,7 @@ class ExponentialBackoffTest extends TestCase
                 $helper,
                 new ExponentialBackoff(
                     new class($helper) extends AbstractRetryCondition {
+                        /** @var Helper */
                         protected $helper;
 
                         public function __construct(Helper $helper)
@@ -104,6 +108,9 @@ class ExponentialBackoffTest extends TestCase
         }
     }
 
+    /**
+     * @return array<array{0: ExponentialBackoff, 1: float, 2: float, 3: string}>
+     */
     public function dataDelays(): array
     {
         // We add 0.2 seconds to the total execution time in each test, assuming that the rest part of the test won't
@@ -198,6 +205,9 @@ class ExponentialBackoffTest extends TestCase
         );
     }
 
+    /**
+     * @return array<array<int>>
+     */
     public function dataGetTimeoutSeconds(): array
     {
         // Test data to help to understand how timeouts are calculated, with input data in following order:
@@ -240,6 +250,9 @@ class ExponentialBackoffTest extends TestCase
         );
     }
 
+    /**
+     * @return array<array<int>>
+     */
     public function dataGetTimeoutMicroseconds(): array
     {
         // Test data to help to understand how timeouts are calculated, with input data in following order:

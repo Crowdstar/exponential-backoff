@@ -74,7 +74,7 @@ class Helper
     {
         if (!$this->reachExpectedAttempts()) {
             $exception = $this->getException();
-            throw new $exception('an exception thrown out from class \\' . __CLASS__);
+            throw new $exception('an exception thrown out from class \\' . __CLASS__); // @phpstan-ignore throw.notThrowable
         }
 
         return $this->getValue();

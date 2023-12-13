@@ -40,6 +40,9 @@ use TypeError;
  */
 class ExceptionBasedConditionTest extends TestCase
 {
+    /**
+     * @return array<array<string>>
+     */
     public function dataSuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
@@ -141,6 +144,9 @@ class ExceptionBasedConditionTest extends TestCase
         }
     }
 
+    /**
+     * @return array<array{0: int, 1: int, 2: string}>
+     */
     public function dataUnsuccessfulRetries(): array
     {
         return [
@@ -175,7 +181,7 @@ class ExceptionBasedConditionTest extends TestCase
         } catch (Exception $e) {
             // Nothing to do here. Exceptions will be evaluated in the "finally" block.
         } finally {
-            self::assertInstanceOf(Exception::class, $e);
+            self::assertInstanceOf(Exception::class, $e); // @phpstan-ignore variable.undefined
             self::assertSame('an exception thrown out from class \\' . Helper::class, $e->getMessage());
             self::assertSame(
                 $maxAttempts,
@@ -185,6 +191,9 @@ class ExceptionBasedConditionTest extends TestCase
         }
     }
 
+    /**
+     * @return array<array<string>>
+     */
     public function dataSetException(): array
     {
         return [
@@ -218,6 +227,9 @@ class ExceptionBasedConditionTest extends TestCase
         self::assertSame([$exception], (new ExceptionBasedCondition($exception))->getExceptions());
     }
 
+    /**
+     * @return array<array<string>>
+     */
     public function dataSetExceptionWithExceptions(): array
     {
         return [

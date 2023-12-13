@@ -42,6 +42,9 @@ use TypeError;
  */
 class ExceptionsBasedConditionTest extends TestCase
 {
+    /**
+     * @return array<array{0: array<string>, 1: array<string>, 2: string}>
+     */
     public function dataSuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
@@ -181,6 +184,9 @@ class ExceptionsBasedConditionTest extends TestCase
         }
     }
 
+    /**
+     * @return array<array{0: int, 1: int, 2: array<string>, 3: array<string>}>
+     */
     public function dataUnsuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
@@ -271,8 +277,8 @@ class ExceptionsBasedConditionTest extends TestCase
             // Nothing to do here. Exceptions will be evaluated in the "finally" block.
         } finally {
             self::assertInstanceOf(
-                $exceptionsToThrow[($maxAttempts - 1) % count($exceptionsToThrow)],
-                $t,
+                $exceptionsToThrow[($maxAttempts - 1) % count($exceptionsToThrow)], // @phpstan-ignore argument.type
+                $t, // @phpstan-ignore variable.undefined
                 'The object thrown out is from the last failed attempt.'
             );
             self::assertSame('an exception thrown out from class \\' . Helper::class, $t->getMessage());
@@ -284,6 +290,9 @@ class ExceptionsBasedConditionTest extends TestCase
         }
     }
 
+    /**
+     * @return array<array<string>>
+     */
     public function dataSetExceptions(): array
     {
         return [
@@ -324,6 +333,9 @@ class ExceptionsBasedConditionTest extends TestCase
         self::assertSame($exceptions, (new ExceptionBasedCondition(...$exceptions))->getExceptions());
     }
 
+    /**
+     * @return array<array{0: string, 1: array<string>}>
+     */
     public function dataSetExceptionsWithExceptions(): array
     {
         return [

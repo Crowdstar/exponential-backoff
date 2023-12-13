@@ -34,6 +34,9 @@ class CustomizedConditionTest extends TestCase
 {
     protected const MAX_ATTEMPTS = ExponentialBackoff::DEFAULT_MAX_ATTEMPTS;
 
+    /**
+     * @return array<array{'maxAttempts': int, 'message': string}>
+     */
     public function dataBackoff(): array
     {
         return [
@@ -99,8 +102,10 @@ class CustomizedConditionTest extends TestCase
     {
         $backoff = (new ExponentialBackoff(
             new class($silenceWhenFailed) extends AbstractRetryCondition {
+                /** @var bool */
                 protected $silenceWhenFailed;
 
+                /** @var bool */
                 protected $throwable = true;
 
                 public function __construct(bool $silenceWhenFailed)

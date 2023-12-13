@@ -34,6 +34,9 @@ use PHPUnit\Framework\TestCase;
  */
 class NullConditionTest extends TestCase
 {
+    /**
+     * @return array<array{0: int, 1: int, 2: ExponentialBackoff, 3: Closure, 4: string}>
+     */
     public function dataSuccessfulRetries(): array
     {
         return [
@@ -118,6 +121,9 @@ class NullConditionTest extends TestCase
         );
     }
 
+    /**
+     * @return array<array{0: int, 1: ExponentialBackoff, 2: string}>
+     */
     public function dataUnsuccessfulRetries(): array
     {
         return [

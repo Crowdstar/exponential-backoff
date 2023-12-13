@@ -26,5 +26,5 @@ ini_set('display_startup_errors', '1');
 
 function getCurrentAttempts(ExponentialBackoff $backoff): int
 {
-    return Reflection::getProperty($backoff, 'currentAttempts');
+    return Reflection::getProperty($backoff, 'currentAttempts'); // @phpstan-ignore return.type
 }

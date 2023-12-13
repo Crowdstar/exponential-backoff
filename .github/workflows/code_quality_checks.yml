@@ -22,10 +22,10 @@ jobs:
         with:
           timeout_minutes: 5
           max_attempts: 5
-          command: composer update --prefer-stable --prefer-dist --no-interaction --no-progress
+          command: composer require phpstan/phpstan=^1.11.x-dev -n -q --no-progress
+
+      - name: Run Static Analysis
+        run: ./vendor/bin/phpstan analyse --no-progress --memory-limit 2G
 
       - name: Run Coding Style Checks
         run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 php-cs-fixer fix --dry-run
-
-      - name: Run Static Analysis
-        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.2 phpstan analyse --no-progress --memory-limit 2G -l 9 examples src

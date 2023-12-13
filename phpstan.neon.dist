@@ -1,0 +1,6 @@
+parameters:
+  level: 9
+  paths:
+    - ./examples
+    - ./src
+    - ./tests

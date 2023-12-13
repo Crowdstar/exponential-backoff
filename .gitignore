@@ -18,6 +18,9 @@
 /.phpunit.result.cache
 /phpunit.xml
 
+# Ignore PHPStan files.
+/phpstan.neon
+
 # Ignore test output
 /.phplint-cache
 /.phplint.cache/*
