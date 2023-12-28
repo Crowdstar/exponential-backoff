@@ -65,7 +65,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
 
     /**
      * @deprecated This will be removed in the next major version. Use {@see self::getExceptions} instead.
-     * @see \CrowdStar\Backoff\ExceptionBasedCondition::getExceptions()
+     * @see ExceptionBasedCondition::getExceptions()
      */
     public function getException(): string
     {
@@ -87,7 +87,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     /**
      * @throws Exception
      * @deprecated This will be removed in the next major version. Use {@see self::setExceptions} instead.
-     * @see \CrowdStar\Backoff\ExceptionBasedCondition::setExceptions()
+     * @see ExceptionBasedCondition::setExceptions()
      */
     public function setException(string $exception): self
     {

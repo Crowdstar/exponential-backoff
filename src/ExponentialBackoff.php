@@ -47,8 +47,8 @@ class ExponentialBackoff
 
     /**
      * @var int
-     * @see \CrowdStar\Backoff\ExponentialBackoff::SAPI_DEFAULT
-     * @see \CrowdStar\Backoff\ExponentialBackoff::SAPI_SWOOLE
+     * @see ExponentialBackoff::SAPI_DEFAULT
+     * @see ExponentialBackoff::SAPI_SWOOLE
      */
     protected $sapi;
 
