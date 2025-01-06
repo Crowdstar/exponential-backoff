@@ -29,6 +29,7 @@ return (new PhpCsFixer\Config())
         'array_syntax'                                     => ['syntax' => 'short'],
         'binary_operator_spaces'                           => ['operators' => ['=' => 'align', '=>' => 'align', ]],
         'blank_line_after_namespace'                       => true,
+        'blank_line_after_opening_tag'                     => false,
         'blank_line_before_statement'                      => ['statements' => ['declare']],
         'class_attributes_separation'                      => true,
         'concat_space'                                     => ['spacing' => 'one'],
@@ -68,6 +69,7 @@ return (new PhpCsFixer\Config())
         'single_quote'                                     => true,
         'standardize_increment'                            => false,
         'standardize_not_equals'                           => true,
+        'trailing_comma_in_multiline'                      => ['after_heredoc' => false, 'elements' => []],
         'yoda_style'                                       => ['always_move_variable' => false, 'equal' => false, 'identical' => false],
     ])
     ->setFinder(

@@ -31,7 +31,7 @@ use CrowdStar\Tests\Backoff\Helper;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 $helper    = new Helper();
-$condition = new class() extends AbstractRetryCondition {
+$condition = new class extends AbstractRetryCondition {
     public function met($result, ?Exception $e): bool
     {
         return $GLOBALS['helper']->reachExpectedAttempts();
