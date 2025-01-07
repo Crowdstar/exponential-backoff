@@ -34,7 +34,7 @@ $helper    = new Helper();
 $condition = new class extends AbstractRetryCondition {
     public function met($result, ?Exception $e): bool
     {
-        return $GLOBALS['helper']->reachExpectedAttempts();
+        return $GLOBALS['helper']->reachExpectedAttempts(); // @phpstan-ignore method.nonObject
     }
 };
 

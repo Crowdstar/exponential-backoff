@@ -121,7 +121,7 @@ class CustomizedConditionTest extends TestCase
 
                 public function met($result, ?Exception $e): bool
                 {
-                    if (empty($e) || (!($e instanceof Exception))) {
+                    if ($e === null) {
                         return true;
                     }
                     $this->throwable = !$this->silenceWhenFailed;
