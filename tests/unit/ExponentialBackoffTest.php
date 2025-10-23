@@ -36,6 +36,30 @@ use PHPUnit\Framework\TestCase;
 class ExponentialBackoffTest extends TestCase
 {
     /**
+     * There are two cases covered in this test:
+     *     1. Test successful retries with exponential backoff.
+     *     2. Test reusing the same instance of ExponentialBackoff multiple times.
+     *
+     * @dataProvider dataSuccessfulRetries
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     */
+    public function testSuccessfulRetries(
+        Helper $helper,
+        ExponentialBackoff $backoff,
+        Closure $c,
+        string $message
+    ): void {
+        $this->assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
+
+        // Reuse the same instance of ExponentialBackoff multiple times.
+        for ($i = 0; $i < 2; $i++) {
+            $helper->reset();
+            $this->assertSame($helper->getValue(), $backoff->run($c), $message);
+            $this->assertSame(4, getCurrentAttempts($backoff), 'current iteration should be 4 (after 4 attempts)');
+        }
+    }
+
+    /**
      * @return array<array{0: Helper, 1: ExponentialBackoff, 2: Closure, 3: string}>
      */
     public function dataSuccessfulRetries(): array
@@ -85,27 +109,34 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * There are two cases covered in this test:
-     *     1. Test successful retries with exponential backoff.
-     *     2. Test reusing the same instance of ExponentialBackoff multiple times.
-     *
-     * @dataProvider dataSuccessfulRetries
+     * @dataProvider dataDelays
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
-    public function testSuccessfulRetries(
-        Helper $helper,
+    public function testDelays(
         ExponentialBackoff $backoff,
-        Closure $c,
+        float $expectedMin,
+        float $expectedMax,
         string $message
     ): void {
-        $this->assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
+        $helper = new Helper();
+        $start  = microtime(true);
+        $backoff->run(
+            function () use ($helper) {
+                return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
+            }
+        );
+        $end = microtime(true);
 
-        // Reuse the same instance of ExponentialBackoff multiple times.
-        for ($i = 0; $i < 2; $i++) {
-            $helper->reset();
-            $this->assertSame($helper->getValue(), $backoff->run($c), $message);
-            $this->assertSame(4, getCurrentAttempts($backoff), 'current iteration should be 4 (after 4 attempts)');
-        }
+        self::assertThat(
+            $end - $start,
+            self::logicalAnd(
+                self::greaterThanOrEqual($expectedMin),
+                self::lessThanOrEqual($expectedMax)
+            ),
+            $message
+        );
     }
 
     /**
@@ -175,33 +206,24 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * @dataProvider dataDelays
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     * @dataProvider dataGetTimeoutSeconds
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
      */
-    public function testDelays(
-        ExponentialBackoff $backoff,
-        float $expectedMin,
-        float $expectedMax,
-        string $message
-    ): void {
-        $helper = new Helper();
-        $start  = microtime(true);
-        $backoff->run(
-            function () use ($helper) {
-                return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
-            }
-        );
-        $end = microtime(true);
-
+    public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout): void
+    {
         self::assertThat(
-            $end - $start,
+            ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout),
             self::logicalAnd(
                 self::greaterThanOrEqual($expectedMin),
                 self::lessThanOrEqual($expectedMax)
             ),
-            $message
+            sprintf(
+                'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
+                $iteration,
+                $initialTimeout,
+                $expectedMin,
+                $expectedMax
+            )
         );
     }
 
@@ -229,13 +251,17 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * @dataProvider dataGetTimeoutSeconds
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
+     * @dataProvider dataGetTimeoutMicroseconds
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
      */
-    public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout): void
-    {
+    public function testGetTimeoutMicroseconds(
+        int $expectedMin,
+        int $expectedMax,
+        int $iteration,
+        int $initialTimeout
+    ): void {
         self::assertThat(
-            ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout),
+            ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout),
             self::logicalAnd(
                 self::greaterThanOrEqual($expectedMin),
                 self::lessThanOrEqual($expectedMax)
@@ -289,31 +315,5 @@ class ExponentialBackoffTest extends TestCase
         $data = array_merge($data, $data, $data, $data, $data);
 
         return array_merge($simpleData, $data);
-    }
-
-    /**
-     * @dataProvider dataGetTimeoutMicroseconds
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
-     */
-    public function testGetTimeoutMicroseconds(
-        int $expectedMin,
-        int $expectedMax,
-        int $iteration,
-        int $initialTimeout
-    ): void {
-        self::assertThat(
-            ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout),
-            self::logicalAnd(
-                self::greaterThanOrEqual($expectedMin),
-                self::lessThanOrEqual($expectedMax)
-            ),
-            sprintf(
-                'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
-                $iteration,
-                $initialTimeout,
-                $expectedMin,
-                $expectedMax
-            )
-        );
     }
 }

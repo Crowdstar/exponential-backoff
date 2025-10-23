@@ -35,27 +35,6 @@ class CustomizedConditionTest extends TestCase
     protected const MAX_ATTEMPTS = ExponentialBackoff::DEFAULT_MAX_ATTEMPTS;
 
     /**
-     * @return array<array{'maxAttempts': int, 'message': string}>
-     */
-    public function dataBackoff(): array
-    {
-        return [
-            [
-                'maxAttempts' => 1,
-                'message'     => 'Maximum # of attempts is 1 (exponential backoff disabled)',
-            ],
-            [
-                'maxAttempts' => 2,
-                'message'     => 'Maximum # of attempts is 2',
-            ],
-            [
-                'maxAttempts' => self::MAX_ATTEMPTS,
-                'message'     => 'Maximum # of attempts is 4',
-            ],
-        ];
-    }
-
-    /**
      * The $backoff object in this test is the same as the one in the next method self::testUnthrowableException(),
      * except that method $backoff->throwable() returns TRUE.
      *
@@ -93,6 +72,27 @@ class CustomizedConditionTest extends TestCase
         );
 
         $this->addToAssertionCount(1); // Since there is no assertions in this test, we manually add the count by 1.
+    }
+
+    /**
+     * @return array<array{'maxAttempts': int, 'message': string}>
+     */
+    public function dataBackoff(): array
+    {
+        return [
+            [
+                'maxAttempts' => 1,
+                'message'     => 'Maximum # of attempts is 1 (exponential backoff disabled)',
+            ],
+            [
+                'maxAttempts' => 2,
+                'message'     => 'Maximum # of attempts is 2',
+            ],
+            [
+                'maxAttempts' => self::MAX_ATTEMPTS,
+                'message'     => 'Maximum # of attempts is 4',
+            ],
+        ];
     }
 
     /**

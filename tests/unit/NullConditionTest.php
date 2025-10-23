@@ -35,6 +35,30 @@ use PHPUnit\Framework\TestCase;
 class NullConditionTest extends TestCase
 {
     /**
+     * @dataProvider dataSuccessfulRetries
+     * @covers \CrowdStar\Backoff\EmptyValueCondition
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::disable()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     * @covers \CrowdStar\Backoff\NullCondition
+     */
+    public function testSuccessfulRetries(
+        int $expectedValue,
+        int $expectedMaxAttempts,
+        ExponentialBackoff $backoff,
+        Closure $c,
+        string $message
+    ): void {
+        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
+        self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
+        self::assertSame($expectedValue, $backoff->run($c), $message);
+        self::assertSame(
+            1,
+            getCurrentAttempts($backoff),
+            'current iteration should still be 1 after first attempt (no matter what has been returned)'
+        );
+    }
+
+    /**
      * @return array<array{0: int, 1: int, 2: ExponentialBackoff, 3: Closure, 4: string}>
      */
     public function dataSuccessfulRetries(): array
@@ -98,54 +122,6 @@ class NullConditionTest extends TestCase
     }
 
     /**
-     * @dataProvider dataSuccessfulRetries
-     * @covers \CrowdStar\Backoff\EmptyValueCondition
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::disable()
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
-     * @covers \CrowdStar\Backoff\NullCondition
-     */
-    public function testSuccessfulRetries(
-        int $expectedValue,
-        int $expectedMaxAttempts,
-        ExponentialBackoff $backoff,
-        Closure $c,
-        string $message
-    ): void {
-        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
-        self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
-        self::assertSame($expectedValue, $backoff->run($c), $message);
-        self::assertSame(
-            1,
-            getCurrentAttempts($backoff),
-            'current iteration should still be 1 after first attempt (no matter what has been returned)'
-        );
-    }
-
-    /**
-     * @return array<array{0: int, 1: ExponentialBackoff, 2: string}>
-     */
-    public function dataUnsuccessfulRetries(): array
-    {
-        return [
-            [
-                4,
-                new ExponentialBackoff(new NullCondition()),
-                'exception thrown out when exponential backoff disabled with a null condition.',
-            ],
-            [
-                1,
-                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
-                'exception thrown out when exponential backoff disabled by setting maximum # of attempts to 1.',
-            ],
-            [
-                1,
-                (new ExponentialBackoff(new EmptyValueCondition()))->disable(),
-                'exception thrown out when exponential backoff disabled by calling method disable().',
-            ],
-        ];
-    }
-
-    /**
      * @dataProvider dataUnsuccessfulRetries
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition
      * @covers \CrowdStar\Backoff\ExponentialBackoff::disable()
@@ -174,5 +150,29 @@ class NullConditionTest extends TestCase
                 'current iteration should still be 1 after first attempt (no matter what has been returned)'
             );
         }
+    }
+
+    /**
+     * @return array<array{0: int, 1: ExponentialBackoff, 2: string}>
+     */
+    public function dataUnsuccessfulRetries(): array
+    {
+        return [
+            [
+                4,
+                new ExponentialBackoff(new NullCondition()),
+                'exception thrown out when exponential backoff disabled with a null condition.',
+            ],
+            [
+                1,
+                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
+                'exception thrown out when exponential backoff disabled by setting maximum # of attempts to 1.',
+            ],
+            [
+                1,
+                (new ExponentialBackoff(new EmptyValueCondition()))->disable(),
+                'exception thrown out when exponential backoff disabled by calling method disable().',
+            ],
+        ];
     }
 }

@@ -41,6 +41,41 @@ use TypeError;
 class ExceptionBasedConditionTest extends TestCase
 {
     /**
+     * @dataProvider dataSuccessfulRetries
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     */
+    public function testSuccessfulRetries(string $exceptionToCatch, string $exceptionToThrow, string $message): void
+    {
+        $maxAttempts = 3; // Three attempts are enough for verification purpose.
+        foreach ([0, 1, 2] as $expectedFailedAttempts) {
+            $helper  = (new Helper())
+                ->setException($exceptionToThrow)
+                ->setExpectedFailedAttempts($expectedFailedAttempts)
+            ;
+            $backoff = (new ExponentialBackoff(new ExceptionBasedCondition($exceptionToCatch)))
+                ->setMaxAttempts($maxAttempts)
+            ;
+
+            self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
+            self::assertSame(
+                $helper->getValue(),
+                $backoff->run(
+                    function () use ($helper) {
+                        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
+                    }
+                ),
+                $message
+            );
+            self::assertSame(
+                $expectedFailedAttempts + 1,
+                getCurrentAttempts($backoff),
+                'total # of attempts made should be one time more than failed attempts'
+            );
+        }
+    }
+
+    /**
      * @return array<array<string>>
      */
     public function dataSuccessfulRetries(): array
@@ -110,56 +145,6 @@ class ExceptionBasedConditionTest extends TestCase
     }
 
     /**
-     * @dataProvider dataSuccessfulRetries
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
-     */
-    public function testSuccessfulRetries(string $exceptionToCatch, string $exceptionToThrow, string $message): void
-    {
-        $maxAttempts = 3; // Three attempts are enough for verification purpose.
-        foreach ([0, 1, 2] as $expectedFailedAttempts) {
-            $helper  = (new Helper())
-                ->setException($exceptionToThrow)
-                ->setExpectedFailedAttempts($expectedFailedAttempts)
-            ;
-            $backoff = (new ExponentialBackoff(new ExceptionBasedCondition($exceptionToCatch)))
-                ->setMaxAttempts($maxAttempts)
-            ;
-
-            self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
-            self::assertSame(
-                $helper->getValue(),
-                $backoff->run(
-                    function () use ($helper) {
-                        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-                    }
-                ),
-                $message
-            );
-            self::assertSame(
-                $expectedFailedAttempts + 1,
-                getCurrentAttempts($backoff),
-                'total # of attempts made should be one time more than failed attempts'
-            );
-        }
-    }
-
-    /**
-     * @return array<array{0: int, 1: int, 2: string}>
-     */
-    public function dataUnsuccessfulRetries(): array
-    {
-        return [
-            [1, 1, 'will fail 1 time  before getting a value back, but maximally only 1 time  allowed'],
-            [2, 1, 'will fail 2 times before getting a value back, but maximally only 1 time  allowed'],
-            [2, 2, 'will fail 2 times before getting a value back, but maximally only 2 times allowed'],
-            [3, 1, 'will fail 3 times before getting a value back, but maximally only 1 time  allowed'],
-            [3, 2, 'will fail 3 times before getting a value back, but maximally only 2 times allowed'],
-            [3, 3, 'will fail 3 times before getting a value back, but maximally only 3 times allowed'],
-        ];
-    }
-
-    /**
      * @dataProvider dataUnsuccessfulRetries
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
@@ -192,6 +177,30 @@ class ExceptionBasedConditionTest extends TestCase
     }
 
     /**
+     * @return array<array{0: int, 1: int, 2: string}>
+     */
+    public function dataUnsuccessfulRetries(): array
+    {
+        return [
+            [1, 1, 'will fail 1 time  before getting a value back, but maximally only 1 time  allowed'],
+            [2, 1, 'will fail 2 times before getting a value back, but maximally only 1 time  allowed'],
+            [2, 2, 'will fail 2 times before getting a value back, but maximally only 2 times allowed'],
+            [3, 1, 'will fail 3 times before getting a value back, but maximally only 1 time  allowed'],
+            [3, 2, 'will fail 3 times before getting a value back, but maximally only 2 times allowed'],
+            [3, 3, 'will fail 3 times before getting a value back, but maximally only 3 times allowed'],
+        ];
+    }
+
+    /**
+     * @dataProvider dataSetException
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
+     */
+    public function testSetException(string $exception): void
+    {
+        self::assertSame([$exception], (new ExceptionBasedCondition($exception))->getExceptions());
+    }
+
+    /**
      * @return array<array<string>>
      */
     public function dataSetException(): array
@@ -219,12 +228,15 @@ class ExceptionBasedConditionTest extends TestCase
     }
 
     /**
-     * @dataProvider dataSetException
+     * @dataProvider dataSetExceptionWithExceptions
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
      */
-    public function testSetException(string $exception): void
+    public function testSetExceptionWithExceptions(string $expectedExceptionMessage, string $exception): void
     {
-        self::assertSame([$exception], (new ExceptionBasedCondition($exception))->getExceptions());
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage($expectedExceptionMessage);
+
+        new ExceptionBasedCondition($exception);
     }
 
     /**
@@ -250,17 +262,5 @@ class ExceptionBasedConditionTest extends TestCase
                 TypeError::class,
             ],
         ];
-    }
-
-    /**
-     * @dataProvider dataSetExceptionWithExceptions
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
-     */
-    public function testSetExceptionWithExceptions(string $expectedExceptionMessage, string $exception): void
-    {
-        $this->expectException(\CrowdStar\Backoff\Exception::class);
-        $this->expectExceptionMessage($expectedExceptionMessage);
-
-        new ExceptionBasedCondition($exception);
     }
 }
