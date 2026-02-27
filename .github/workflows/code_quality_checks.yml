@@ -4,7 +4,7 @@ on: [ push, pull_request, workflow_dispatch ]
 
 jobs:
   code-quality-checks:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -13,7 +13,7 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: 8.2
+          php-version: 8.5
           tools: composer:v2
           coverage: none
 
@@ -28,4 +28,4 @@ jobs:
         run: ./vendor/bin/phpstan analyse --no-progress --memory-limit 2G
 
       - name: Run Coding Style Checks
-        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.3-alpine php-cs-fixer fix -q --dry-run
+        run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php8.5-alpine php-cs-fixer fix -q --dry-run
