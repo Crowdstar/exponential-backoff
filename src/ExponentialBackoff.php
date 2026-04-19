@@ -189,7 +189,7 @@ class ExponentialBackoff
         $timeout = $initialTimeout * (1 << --$iteration);
 
         // We throw in some randomness here to try to prevent connections from colliding
-        return $timeout + rand(0, $timeout / 10);
+        return $timeout + random_int(0, intdiv($timeout, 10));
     }
 
     protected function increaseCurrentAttempts(): self
