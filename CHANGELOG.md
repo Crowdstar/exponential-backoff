@@ -54,6 +54,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   `ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run($c)`. The closure receives what the call
   returned and what it threw; a second argument to _::when()_ says whether an exception the last attempt was left with
   should be thrown out.
+* Methods _ExceptionBasedCondition::setIgnoredExceptions()_ and _::getIgnoredExceptions()_, listing types that are
+  never retried. Ignored types take priority over the types being retried on, so "retry every _HttpException_ except
+  _HttpBadRequestException_" no longer means enumerating every sibling of the one exception to be left alone. An
+  ignored exception ends the run at once and is thrown out, the same as one that was never covered.
 
 ### Fixed
 

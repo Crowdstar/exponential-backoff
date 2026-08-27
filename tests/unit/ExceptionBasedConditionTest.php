@@ -29,6 +29,7 @@ use Error;
 use Exception;
 use LogicException;
 use PHPUnit\Framework\ExpectationFailedException;
+use RuntimeException;
 use Throwable;
 use TypeError;
 
@@ -188,6 +189,77 @@ class ExceptionBasedConditionTest extends TestCase
     public function testSetException(string $exception): void
     {
         self::assertSame([$exception], (new ExceptionBasedCondition($exception))->getExceptions());
+    }
+
+    /**
+     * An ignored type wins over the type to retry on, which is the point: it is how a subclass gets left alone while
+     * its parent keeps being retried.
+     *
+     * @dataProvider dataIgnoredExceptions
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::shouldRetry()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setIgnoredExceptions()
+     */
+    public function testIgnoredExceptions(bool $expected, Exception $thrown): void
+    {
+        $condition = (new ExceptionBasedCondition(LogicException::class))
+            ->setIgnoredExceptions(BadMethodCallException::class)
+        ;
+
+        self::assertSame([BadMethodCallException::class], $condition->getIgnoredExceptions());
+        self::assertSame($expected, $condition->shouldRetry(null, $thrown), $thrown::class);
+    }
+
+    /**
+     * @return array<string, array{0: bool, 1: Exception}>
+     */
+    public static function dataIgnoredExceptions(): array
+    {
+        // LogicException > BadFunctionCallException > BadMethodCallException
+        return [
+            'the type to retry on is retried'                   => [true, new LogicException()],
+            'so is a subclass of it'                            => [true, new BadFunctionCallException()],
+            'the ignored subclass is not'                       => [false, new BadMethodCallException()],
+            'and neither is anything outside the list'          => [false, new RuntimeException()],
+        ];
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setIgnoredExceptions()
+     */
+    public function testIgnoredExceptionsAreValidatedToo(): void
+    {
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage('ArrayAccess objects are not instances of interface \Throwable');
+
+        (new ExceptionBasedCondition())->setIgnoredExceptions(ArrayAccess::class);
+    }
+
+    /**
+     * An ignored exception ends the run at once, and is thrown out rather than swallowed.
+     *
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::shouldRetry()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     */
+    public function testIgnoredExceptionStopsTheRun(): void
+    {
+        $attempts  = 0;
+        $condition = (new ExceptionBasedCondition(LogicException::class))
+            ->setIgnoredExceptions(BadMethodCallException::class)
+        ;
+
+        try {
+            (new ExponentialBackoff($condition))->run(
+                function () use (&$attempts): never {
+                    $attempts++;
+
+                    throw new BadMethodCallException('not worth retrying');
+                }
+            );
+            self::fail('the ignored exception should have been thrown out');
+        } catch (BadMethodCallException $e) {
+            self::assertSame('not worth retrying', $e->getMessage());
+            self::assertSame(1, $attempts, 'no retry was attempted');
+        }
     }
 
     /**

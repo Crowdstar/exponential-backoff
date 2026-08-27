@@ -85,6 +85,30 @@ try {
 ?>
 ```
 
+To retry a whole family of exceptions except for one of its members, list that one through method
+_\CrowdStar\Backoff\ExceptionBasedCondition::setIgnoredExceptions()_. Ignored types are never retried, whichever
+types are being retried on, so there is no need to enumerate every sibling of the one you want left alone:
+
+```php
+<?php
+use CrowdStar\Backoff\ExceptionBasedCondition;
+use CrowdStar\Backoff\ExponentialBackoff;
+
+// Retry any HttpException -- a 503 or a timeout is worth another attempt -- but give up on a 400 right away, since
+// sending the same bad request again will fail the same way.
+$condition = (new ExceptionBasedCondition(HttpException::class))
+    ->setIgnoredExceptions(HttpBadRequestException::class);
+
+$result = (new ExponentialBackoff($condition))->run(
+    function () {
+        return MyClass::fetchData();
+    }
+);
+?>
+```
+
+An ignored exception ends the run at once and is thrown out, the same as one that was never covered to begin with.
+
 ### Don't Throw Out an Exception When Finally Failed
 
 When method call _MyClass::fetchData()_ finally fails with an exception caught, we can silence the exception without

@@ -26,11 +26,18 @@ use Throwable;
 /**
  * Class ExceptionBasedCondition
  * Do a retry if specified types of exceptions are thrown out.
+ *
+ * Types set through $this->setIgnoredExceptions() are never retried, and that takes priority: it is how you say
+ * "retry every HttpException, but not HttpBadRequestException", without having to list every sibling of the one
+ * exception you want left alone.
  */
 class ExceptionBasedCondition extends AbstractRetryCondition
 {
     /** @var string[] */
     protected array $exceptions = [];
+
+    /** @var string[] */
+    protected array $ignoredExceptions = [];
 
     /**
      * ExceptionBasedCondition constructor.
@@ -50,6 +57,13 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     {
         if ($e === null) {
             return false; // The call went through.
+        }
+
+        // Checked before the types to retry on, so that an ignored subclass wins over its retryable parent.
+        foreach ($this->getIgnoredExceptions() as $exception) {
+            if ($e instanceof $exception) {
+                return false;
+            }
         }
 
         foreach ($this->getExceptions() as $exception) {
@@ -75,7 +89,38 @@ class ExceptionBasedCondition extends AbstractRetryCondition
      */
     public function setExceptions(string ...$exceptions): self
     {
-        $this->exceptions = [];
+        $this->exceptions = self::validated($exceptions);
+
+        return $this;
+    }
+
+    /**
+     * Types listed here are never retried, whether or not $this->setExceptions() covers them as well.
+     *
+     * @return string[]
+     */
+    public function getIgnoredExceptions(): array
+    {
+        return $this->ignoredExceptions;
+    }
+
+    /**
+     * @throws Exception
+     */
+    public function setIgnoredExceptions(string ...$exceptions): self
+    {
+        $this->ignoredExceptions = self::validated($exceptions);
+
+        return $this;
+    }
+
+    /**
+     * @param string[] $exceptions
+     * @return string[]
+     * @throws Exception
+     */
+    protected static function validated(array $exceptions): array
+    {
         foreach ($exceptions as $exception) {
             if (!class_exists($exception) && !interface_exists($exception)) {
                 throw new Exception("Class/interface \"{$exception}\" does not exist");
@@ -92,10 +137,8 @@ class ExceptionBasedCondition extends AbstractRetryCondition
                     throw new Exception("{$exception} objects are not instances of interface \\" . Throwable::class);
                 }
             }
-
-            $this->exceptions[] = $exception;
         }
 
-        return $this;
+        return $exceptions;
     }
 }
