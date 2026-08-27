@@ -64,7 +64,7 @@ class ExceptionBasedConditionTest extends TestCase
             );
             self::assertSame(
                 $expectedFailedAttempts + 1,
-                getCurrentAttempts($backoff),
+                $helper->getAttemptsMade(),
                 'total # of attempts made should be one time more than failed attempts'
             );
         }
@@ -160,7 +160,7 @@ class ExceptionBasedConditionTest extends TestCase
             self::assertSame('an exception thrown out from class \\' . Helper::class, $e->getMessage());
             self::assertSame(
                 $maxAttempts,
-                getCurrentAttempts($backoff),
+                $helper->getAttemptsMade(),
                 'maximum number of allowed attempts have been made but all failed with exceptions thrown out'
             );
         }

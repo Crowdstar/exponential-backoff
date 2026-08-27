@@ -59,11 +59,6 @@ class ExponentialBackoff
 
     protected int $maxTimeout = self::DEFAULT_MAX_TIMEOUT;
 
-    /**
-     * Set by method $this->run() before the first attempt is made.
-     */
-    protected int $currentAttempts;
-
     protected AbstractRetryCondition $retryCondition;
 
     /**
@@ -80,11 +75,14 @@ class ExponentialBackoff
     }
 
     /**
+     * The attempt counter lives here rather than on the object, so that one instance can be handed to several callers
+     * at once -- concurrent coroutines, or a closure that calls run() again -- without them counting over each other.
+     *
      * @throws Exception
      */
     public function run(Closure $c, mixed ...$params): mixed
     {
-        $this->currentAttempts = 1; // Force to reset # of current attempts.
+        $attempt = 1;
 
         do {
             $result = $e = null;
@@ -94,7 +92,7 @@ class ExponentialBackoff
             } catch (\Exception $e) {
                 // Nothing to process here.
             }
-        } while ($this->retry($result, $e));
+        } while ($this->retry($result, $e, $attempt++));
 
         // If you still have an exception, throw it out if needed.
         if (!empty($e) && $this->getRetryCondition()->throwable()) {
@@ -238,32 +236,25 @@ class ExponentialBackoff
         };
     }
 
-    protected function increaseCurrentAttempts(): self
-    {
-        $this->currentAttempts++;
-
-        return $this;
-    }
-
-    protected function retry(mixed $result, ?\Exception $e): bool
+    protected function retry(mixed $result, ?\Exception $e, int $attempt): bool
     {
         if ($this->getRetryCondition()->met($result, $e)) {
             return false;
         }
 
-        if ($this->currentAttempts >= $this->getMaxAttempts()) {
+        if ($attempt >= $this->getMaxAttempts()) {
             return false;
         }
 
-        $this->sleep();
+        $this->sleep($attempt);
 
         return true;
     }
 
-    protected function sleep(): self
+    protected function sleep(int $attempt): void
     {
         $microSeconds = self::getTimeoutMicroseconds(
-            $this->currentAttempts,
+            $attempt,
             $this->getInitialTimeout(),
             $this->getMaxTimeout(),
             $this->getJitter()
@@ -276,7 +267,5 @@ class ExponentialBackoff
             // ponytail: PHP implements usleep() via nanosleep(), so multi-second waits are fine here.
             usleep($microSeconds);
         }
-
-        return $this->increaseCurrentAttempts();
     }
 }

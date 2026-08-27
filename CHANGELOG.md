@@ -47,6 +47,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+* One instance of _ExponentialBackoff_ can now be used by several callers at once. The attempt counter was kept on the
+  object and reset at the start of every _::run()_, so a closure that called _::run()_ again on the same instance reset
+  the count of the run it was part of, and that run then gave up after a single attempt while returning as if it had
+  succeeded. The same went for concurrent Swoole coroutines sharing an instance, which is how a service tends to be
+  wired up there — and which the 3.0.11 note about reusing an instance did not warn about, being true only for runs
+  happening one after another.
 * Timeouts no longer overflow. Doubling an uncapped timeout left the integer range from the 46th attempt on, where
   _ExponentialBackoff::getTimeoutMicroseconds()_ threw a _TypeError_, and from the 65th attempt on the bit shift it
   used returned 0, silently disabling the backoff altogether. Both were reachable through _::setMaxAttempts()_, and
@@ -63,9 +69,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   the result of _::getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
 * **BREAKING** The protected constants _ExponentialBackoff::SAPI_DEFAULT_ and _ExponentialBackoff::SAPI_SWOOLE_. Use
   enum _CrowdStar\Backoff\Sapi_ instead.
-* **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x. Property
-  _ExponentialBackoff::$currentAttempts_ no longer carries an initial value either: it is set by _::run()_ before the
-  first attempt, so reading it through reflection before a run now raises an _Error_ instead of returning 1.
+* **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x, along with the protected
+  property _$currentAttempts_ it read and the protected method _::increaseCurrentAttempts()_. The attempt counter is now
+  a local variable of _::run()_, passed to the protected methods _::retry()_ and _::sleep()_, both of which therefore
+  take one parameter more; _::sleep()_ also returns nothing instead of `self`.
 * **BREAKING** Methods _ExceptionBasedCondition::getException()_ and _ExceptionBasedCondition::setException()_,
   deprecated since 3.0.10. Use _::getExceptions()_ and _::setExceptions()_ instead, which handle one or more types.
 * Exceptions previously thrown for an invalid backoff type or an invalid `$sapi` value. Both are now impossible, so

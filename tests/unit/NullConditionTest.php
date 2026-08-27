@@ -48,12 +48,19 @@ class NullConditionTest extends TestCase
         Closure $c,
         string $message
     ): void {
+        $attempts = 0;
+        $counted  = function () use ($c, &$attempts): mixed {
+            $attempts++;
+
+            return $c();
+        };
+
         self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
-        self::assertSame($expectedValue, $backoff->run($c), $message);
+        self::assertSame($expectedValue, $backoff->run($counted), $message);
         self::assertSame(
             1,
-            getCurrentAttempts($backoff),
-            'current iteration should still be 1 after first attempt (no matter what has been returned)'
+            $attempts,
+            'only one attempt was made, no matter what the callback returned'
         );
     }
 
@@ -119,18 +126,21 @@ class NullConditionTest extends TestCase
     {
         self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
 
-        $e = null;
+        $attempts = 0;
+        $e        = null;
         try {
-            $backoff->run(fn () => throw new Exception());
+            $backoff->run(
+                function () use (&$attempts): never {
+                    $attempts++;
+
+                    throw new Exception();
+                }
+            );
         } catch (Exception $e) {
             // Nothing to do here. Exceptions will be evaluated in the finally block.
         } finally {
             self::assertInstanceOf(Exception::class, $e);
-            self::assertSame(
-                1,
-                getCurrentAttempts($backoff),
-                'current iteration should still be 1 after first attempt (no matter what has been returned)'
-            );
+            self::assertSame(1, $attempts, 'only one attempt was made, even though it threw');
         }
     }
 

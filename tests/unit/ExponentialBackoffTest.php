@@ -61,7 +61,7 @@ class ExponentialBackoffTest extends TestCase
         for ($i = 0; $i < 2; $i++) {
             $helper->reset();
             $this->assertSame($helper->getValue(), $backoff->run($c), $message);
-            $this->assertSame(4, getCurrentAttempts($backoff), 'current iteration should be 4 (after 4 attempts)');
+            $this->assertSame(4, $helper->getAttemptsMade(), 'current iteration should be 4 (after 4 attempts)');
         }
     }
 
@@ -363,6 +363,32 @@ class ExponentialBackoffTest extends TestCase
             $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...))
         );
         self::assertLessThanOrEqual(0.2, microtime(true) - $start, 'three sleeps of at most 1ms each');
+    }
+
+    /**
+     * One instance handed to two callers at once must not have them counting over each other. The attempt counter
+     * used to live on the object, so the inner run() reset it and the outer one gave up after a single attempt.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run
+     */
+    public function testNestedRunsCountSeparately(): void
+    {
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None)->setMaxTimeout(1000);
+        $outer   = (new Helper())->setExpectedFailedAttempts(2);
+        $inner   = (new Helper())->setExpectedFailedAttempts(2);
+
+        $result = $backoff->run(
+            function () use ($backoff, $outer, $inner): mixed {
+                $inner->reset();
+                $backoff->run($inner->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
+                self::assertSame(3, $inner->getAttemptsMade(), 'the inner run made all three of its attempts');
+
+                return $outer->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...)();
+            }
+        );
+
+        self::assertSame($outer->getValue(), $result, 'the outer run kept retrying until it had a value');
+        self::assertSame(3, $outer->getAttemptsMade(), 'and it made all three of its own attempts');
     }
 
     /**

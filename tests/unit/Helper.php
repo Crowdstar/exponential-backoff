@@ -119,6 +119,14 @@ class Helper
         return $this->currentAttempts;
     }
 
+    /**
+     * How many times this helper has been called, which is how many attempts the exponential backoff around it made.
+     */
+    public function getAttemptsMade(): int
+    {
+        return $this->currentAttempts - 1;
+    }
+
     public function getException(): string
     {
         if (empty($this->exceptions)) {
