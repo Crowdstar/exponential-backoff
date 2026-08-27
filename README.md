@@ -20,8 +20,9 @@ Exponential back-offs prevent overloading an unavailable service by doubling the
 an exponential back-off algorithm to calculate the timeout for the next request.
 
 This library allows doing exponential backoff in non-blocking mode in [Swoole](https://github.com/swoole/swoole-src).
-Swoole coroutines are detected automatically; pass a _\CrowdStar\Backoff\Sapi_ case as the second constructor parameter
-to force blocking or non-blocking mode.
+Coroutines are detected before every wait, so one instance can be shared by coroutines and by ordinary code alike; pass
+a _\CrowdStar\Backoff\Sapi_ case as the second constructor parameter to force blocking mode, and
+_\CrowdStar\Backoff\ExponentialBackoff::getSapi()_ tells which mode a wait would happen in.
 
 # Installation
 

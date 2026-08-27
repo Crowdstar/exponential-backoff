@@ -18,7 +18,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   an integer, and defaults to NULL (autodetect) instead of 0.
 * Method _AbstractRetryCondition::met()_ now declares its first parameter as `mixed`. Existing subclasses that leave the
   parameter untyped keep working.
-* Class properties now use native types, and _ExponentialBackoff::$sapi_ is `readonly`.
+* Class properties now use native types.
+* **BREAKING** The protected property _ExponentialBackoff::$sapi_ now holds what the caller asked for — a
+  _CrowdStar\Backoff\Sapi_ case, or NULL to have it worked out per wait — rather than the mode a wait happens in. Use
+  the new _::getSapi()_ for the latter.
 * **BREAKING** A single timeout is now capped at 30 seconds by default, configurable with
   _ExponentialBackoff::setMaxTimeout()_. Timeouts double until they reach the cap and stay there, where before they
   doubled without limit. With the default of 4 attempts the longest timeout is 1 second, so the default behavior is
@@ -42,11 +45,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   _ExponentialBackoff::SAPI_SWOOLE_. Unlike those, it can be used by callers to force blocking or non-blocking mode.
 * Methods _ExponentialBackoff::setInitialTimeout()_, _::getInitialTimeout()_, _::setMaxTimeout()_ and
   _::getMaxTimeout()_, plus constants _ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT_ and _::DEFAULT_MAX_TIMEOUT_.
+* Method _ExponentialBackoff::getSapi()_, telling which mode a wait would happen in right now.
 * Enum _CrowdStar\Backoff\Jitter_ with cases _None_, _Full_ and _Equal_, along with methods
   _ExponentialBackoff::setJitter()_ and _::getJitter()_ and constant _ExponentialBackoff::DEFAULT_JITTER_.
 
 ### Fixed
 
+* Whether to wait in non-blocking mode is now decided per wait instead of once at construction. An instance built
+  outside a coroutine — a service put together during bootstrap, say — used to block forever afterwards, even when used
+  by coroutines, which is the way it is normally wired up in a Swoole application. Passing _Sapi::Swoole_ where no
+  coroutine is running no longer raises the _Swoole\Error_ it would produce either; the wait falls back to blocking.
 * One instance of _ExponentialBackoff_ can now be used by several callers at once. The attempt counter was kept on the
   object and reset at the start of every _::run()_, so a closure that called _::run()_ again on the same instance reset
   the count of the run it was part of, and that run then gave up after a single attempt while returning as if it had

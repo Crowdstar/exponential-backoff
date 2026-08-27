@@ -53,7 +53,11 @@ class ExponentialBackoff
 
     protected Jitter $jitter = self::DEFAULT_JITTER;
 
-    protected readonly Sapi $sapi;
+    /**
+     * The mode the caller asked for, or NULL to work it out per wait. Never read this directly; $this->getSapi()
+     * answers which mode a wait would actually happen in.
+     */
+    protected ?Sapi $sapi;
 
     protected int $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
 
@@ -62,14 +66,11 @@ class ExponentialBackoff
     protected AbstractRetryCondition $retryCondition;
 
     /**
-     * @param ?Sapi $sapi how to sleep between attempts; autodetected when NULL.
+     * @param ?Sapi $sapi how to sleep between attempts; worked out per wait when NULL.
      */
     public function __construct(AbstractRetryCondition $retryCondition, ?Sapi $sapi = null)
     {
-        // Sleep in non-blocking mode only when running inside a coroutine created by Swoole.
-        $this->sapi = $sapi ?? (
-            (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) ? Sapi::Swoole : Sapi::Default
-        );
+        $this->sapi = $sapi;
 
         $this->setRetryCondition($retryCondition);
     }
@@ -149,6 +150,17 @@ class ExponentialBackoff
         $this->maxAttempts = $maxAttempts;
 
         return $this;
+    }
+
+    /**
+     * Which mode a wait would happen in right now: non-blocking inside a Swoole coroutine, blocking anywhere else.
+     *
+     * This is worked out per call rather than once at construction, because the same instance may well be used both
+     * inside and outside coroutines -- a service built during bootstrap and then used by coroutines, for one.
+     */
+    public function getSapi(): Sapi
+    {
+        return $this->sleepsInCoroutine() ? Sapi::Swoole : Sapi::Default;
     }
 
     public function getJitter(): Jitter
@@ -260,12 +272,24 @@ class ExponentialBackoff
             $this->getJitter()
         );
 
-        if ($this->sapi === Sapi::Swoole) {
+        if ($this->sleepsInCoroutine()) {
             // Minimum execution delay in Swoole is 1ms.
             Coroutine::sleep(max($microSeconds / 1_000_000, 0.001));
         } else {
             // ponytail: PHP implements usleep() via nanosleep(), so multi-second waits are fine here.
             usleep($microSeconds);
         }
+    }
+
+    protected function sleepsInCoroutine(): bool
+    {
+        if ($this->sapi === Sapi::Default) {
+            return false; // Blocking mode was asked for.
+        }
+
+        // Whether Sapi::Swoole was asked for or is being worked out here, it only holds inside a coroutine created by
+        // Swoole: method Coroutine::sleep() raises a Swoole\Error anywhere else, which is not something a library
+        // whose job is to absorb failures should let happen.
+        return extension_loaded('swoole') && (Coroutine::getPcid() !== false);
     }
 }

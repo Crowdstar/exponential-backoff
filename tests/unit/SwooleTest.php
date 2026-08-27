@@ -25,7 +25,6 @@ use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Jitter;
 use CrowdStar\Backoff\NullCondition;
 use CrowdStar\Backoff\Sapi;
-use CrowdStar\Reflection\Reflection;
 use Deminy\Counit\TestCase;
 use Swoole\Coroutine;
 use Swoole\Runtime;
@@ -61,24 +60,58 @@ class SwooleTest extends TestCase
             self::markTestSkipped('the test suite itself runs inside a coroutine here');
         }
 
-        self::assertSame(Sapi::Default, self::getSapi(new ExponentialBackoff(new NullCondition())));
+        self::assertSame(Sapi::Default, (new ExponentialBackoff(new NullCondition()))->getSapi());
     }
 
     /**
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::__construct()
+     * The instance is built outside any coroutine on purpose: a service tends to be built during bootstrap and used
+     * by coroutines afterwards, and the mode used to be settled at construction, which left such an instance blocking
+     * forever.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getSapi()
      */
     public function testNonBlockingModeInsideCoroutine(): void
     {
         self::skipWithoutSwoole();
 
-        $sapi = null;
+        $backoff = new ExponentialBackoff(new NullCondition());
+        $sapi    = null;
+
         self::inCoroutine(
-            function () use (&$sapi): void {
-                $sapi = self::getSapi(new ExponentialBackoff(new NullCondition()));
+            function () use ($backoff, &$sapi): void {
+                $sapi = $backoff->getSapi();
             }
         );
 
-        self::assertSame(Sapi::Swoole, $sapi, 'exponential backoff detects the coroutine it runs inside');
+        self::assertSame(Sapi::Swoole, $sapi, 'exponential backoff detects the coroutine it is used inside');
+    }
+
+    /**
+     * Forcing non-blocking mode where it cannot work falls back to blocking, rather than letting a Swoole\Error out.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getSapi()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
+     */
+    public function testForcedNonBlockingModeOutsideCoroutine(): void
+    {
+        self::skipWithoutSwoole();
+
+        if (self::insideCoroutine()) {
+            self::markTestSkipped('the test suite itself runs inside a coroutine here');
+        }
+
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition(), Sapi::Swoole))
+            ->setJitter(Jitter::None)
+            ->setMaxTimeout(1000)
+        ;
+        $helper = (new Helper())->setExpectedFailedAttempts(1);
+
+        self::assertSame(Sapi::Default, $backoff->getSapi(), 'there is no coroutine to sleep in');
+        self::assertSame(
+            $helper->getValue(),
+            $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...)),
+            'the run went through, waiting in blocking mode'
+        );
     }
 
     /**
@@ -171,11 +204,6 @@ class SwooleTest extends TestCase
     protected static function insideCoroutine(): bool
     {
         return extension_loaded('swoole') && (Coroutine::getCid() !== -1);
-    }
-
-    protected static function getSapi(ExponentialBackoff $backoff): mixed
-    {
-        return Reflection::getProperty($backoff, 'sapi');
     }
 
     protected static function skipWithoutSwoole(): void
