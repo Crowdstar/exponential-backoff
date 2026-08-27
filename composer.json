@@ -8,7 +8,7 @@
     },
     "require-dev": {
         "crowdstar/reflection": "~2.0.0",
-        "phpunit/phpunit": "~9.0",
+        "deminy/counit": "~0.3",
         "swoole/ide-helper": "~6.0"
     },
     "suggest": {

@@ -23,8 +23,8 @@ use Closure;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\NullCondition;
+use Deminy\Counit\TestCase;
 use Exception;
-use PHPUnit\Framework\TestCase;
 
 /**
  * Class NullConditionTest

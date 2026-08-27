@@ -6,4 +6,8 @@
     <php>
         <const name="UNDER_PHPUNIT" value="true"/>
     </php>
+    <!-- To wait for the whole test suite to finish before printing out the summary information at the end. -->
+    <extensions>
+        <extension class="Deminy\Counit\CounitExtension"/>
+    </extensions>
 </phpunit>

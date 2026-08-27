@@ -19,12 +19,13 @@ declare(strict_types=1);
 
 namespace CrowdStar\Tests\Backoff;
 
+use Closure;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\NullCondition;
 use CrowdStar\Backoff\Sapi;
 use CrowdStar\Reflection\Reflection;
-use PHPUnit\Framework\TestCase;
+use Deminy\Counit\TestCase;
 use Swoole\Coroutine;
 use Swoole\Runtime;
 
@@ -34,18 +35,31 @@ use Swoole\Runtime;
  * Covers how exponential backoff behaves in non-blocking mode. Everything but the first test needs extension swoole
  * and is skipped without it, which is why CI runs the suite both with and without the extension loaded.
  *
+ * Unlike the other test cases, the ones here manage coroutines themselves, taking into account that binary counit
+ * already runs the whole test suite inside a coroutine.
+ *
  * @internal
  * @coversNothing
  */
 class SwooleTest extends TestCase
 {
     /**
-     * Outside a Swoole coroutine we sleep in blocking mode, whether or not extension swoole is loaded.
+     * How much shorter than requested a wait is still accepted; method Swoole\Coroutine::sleep() works with
+     * millisecond precision and can resume a coroutine a fraction of a millisecond early.
+     */
+    protected const TIMER_TOLERANCE = 0.01;
+
+    /**
+     * Without a coroutine to run inside, we sleep in blocking mode whether or not extension swoole is loaded.
      *
      * @covers \CrowdStar\Backoff\ExponentialBackoff::__construct()
      */
     public function testBlockingModeOutsideCoroutine(): void
     {
+        if (self::insideCoroutine()) {
+            self::markTestSkipped('the test suite itself runs inside a coroutine here');
+        }
+
         self::assertSame(Sapi::Default, self::getSapi(new ExponentialBackoff(new NullCondition())));
     }
 
@@ -57,7 +71,7 @@ class SwooleTest extends TestCase
         self::skipWithoutSwoole();
 
         $sapi = null;
-        Coroutine\run(
+        self::inCoroutine(
             function () use (&$sapi): void {
                 $sapi = self::getSapi(new ExponentialBackoff(new NullCondition()));
             }
@@ -70,9 +84,9 @@ class SwooleTest extends TestCase
      * Two backoffs waiting inside their own coroutines should overlap instead of queueing up, taking about as long as
      * a single one. Each does one retry, so each waits for one initial timeout of 0.25 second plus up to 10% jitter.
      *
-     * Method Coroutine\run() turns on Swoole's runtime hooks, which make even a blocking usleep() yield to other
-     * coroutines. The hooks are switched off here so that Coroutine::sleep() is the only thing that can make the two
-     * waits overlap, which is what makes the upper bound below meaningful.
+     * Swoole's runtime hooks make even a blocking usleep() yield to other coroutines. The hooks are switched off here
+     * so that Coroutine::sleep() is the only thing that can make the two waits overlap, which is what makes the upper
+     * bound below meaningful.
      *
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::sleep()
@@ -81,31 +95,42 @@ class SwooleTest extends TestCase
     {
         self::skipWithoutSwoole();
 
+        $results   = [];
+        $elapsed   = 0.0;
         $hookFlags = Runtime::getHookFlags();
         Runtime::setHookFlags(0);
 
         try {
-            $results = [];
-            $start   = microtime(true);
-            // Method Coroutine\run() returns only after every coroutine created inside it has finished.
-            Coroutine\run(
-                function () use (&$results): void {
+            self::inCoroutine(
+                function () use (&$results, &$elapsed): void {
+                    $start = microtime(true);
+                    $cids  = [];
+
                     foreach ([0, 1] as $i) {
-                        Coroutine::create(
+                        $cids[] = Coroutine::create(
                             function () use (&$results, $i): void {
                                 $results[$i] = self::fetchValueWithOneRetry();
                             }
                         );
                     }
+                    Coroutine::join($cids);
+
+                    $elapsed = microtime(true) - $start;
                 }
             );
-            $elapsed = microtime(true) - $start;
         } finally {
             Runtime::setHookFlags($hookFlags);
         }
 
+        // Whichever coroutine wakes up first writes first, so the keys need sorting before being compared.
+        ksort($results);
+
         self::assertSame(['Hello World!', 'Hello World!'], $results, 'both coroutines fetched a value back');
-        self::assertGreaterThanOrEqual(0.25, $elapsed, 'each coroutine waited for one initial timeout');
+        self::assertGreaterThanOrEqual(
+            0.25 - self::TIMER_TOLERANCE,
+            $elapsed,
+            'each coroutine waited for one initial timeout'
+        );
         self::assertLessThanOrEqual(
             0.45,
             $elapsed,
@@ -124,6 +149,24 @@ class SwooleTest extends TestCase
             ->setMaxAttempts(2)
             ->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...))
         ;
+    }
+
+    /**
+     * Run given callback inside a coroutine, reusing the current one when there is one already. Starting a new
+     * coroutine scheduler with Coroutine\run() is not allowed while one is running, which is the case under counit.
+     */
+    protected static function inCoroutine(Closure $callback): void
+    {
+        if (self::insideCoroutine()) {
+            $callback();
+        } else {
+            Coroutine\run($callback);
+        }
+    }
+
+    protected static function insideCoroutine(): bool
+    {
+        return extension_loaded('swoole') && (Coroutine::getCid() !== -1);
     }
 
     protected static function getSapi(ExponentialBackoff $backoff): mixed

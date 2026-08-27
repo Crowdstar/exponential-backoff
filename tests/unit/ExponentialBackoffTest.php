@@ -25,8 +25,8 @@ use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Type;
+use Deminy\Counit\TestCase;
 use Exception;
-use PHPUnit\Framework\TestCase;
 
 /**
  * Class ExponentialBackoffTest
@@ -36,6 +36,13 @@ use PHPUnit\Framework\TestCase;
  */
 class ExponentialBackoffTest extends TestCase
 {
+    /**
+     * How much shorter than requested a wait is still accepted. Method Swoole\Coroutine::sleep() works with
+     * millisecond precision and can resume a coroutine a fraction of a millisecond early, where usleep() never
+     * returns too soon.
+     */
+    protected const TIMER_TOLERANCE = 0.01;
+
     /**
      * There are two cases covered in this test:
      *     1. Test successful retries with exponential backoff.
@@ -59,42 +66,51 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
+     * Every data set gets a Helper of its own. Counit runs the test cases concurrently, where a shared Helper would
+     * have them interfering with each other's attempt counting.
+     *
      * @return array<array{0: Helper, 1: ExponentialBackoff, 2: Closure, 3: string}>
      */
     public static function dataSuccessfulRetries(): array
     {
-        $helper = (new Helper())->setException(Exception::class);
-        return [
-            [
-                $helper,
-                new ExponentialBackoff(new EmptyValueCondition()),
-                $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...),
-                'fetch a non-empty value after 3 failed attempts where empty values were returned.',
-            ],
-            [
-                $helper,
-                new ExponentialBackoff(new ExceptionBasedCondition()),
-                $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...),
-                'fetch a value after 3 failed attempts where exceptions were thrown out.',
-            ],
-            [
-                $helper,
-                new ExponentialBackoff(
-                    new class($helper) extends AbstractRetryCondition {
-                        public function __construct(protected readonly Helper $helper)
-                        {
-                        }
+        $data = [];
 
-                        public function met(mixed $result, ?Exception $e): bool
-                        {
-                            return $this->helper->getCurrentAttempts() - 1 > $this->helper->getExpectedFailedAttempts();
-                        }
-                    }
-                ),
-                $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...),
-                'fetch a value after 3 failed attempts through a self-defined retry function.',
-            ],
+        $helper = (new Helper())->setException(Exception::class);
+        $data[] = [
+            $helper,
+            new ExponentialBackoff(new EmptyValueCondition()),
+            $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...),
+            'fetch a non-empty value after 3 failed attempts where empty values were returned.',
         ];
+
+        $helper = (new Helper())->setException(Exception::class);
+        $data[] = [
+            $helper,
+            new ExponentialBackoff(new ExceptionBasedCondition()),
+            $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...),
+            'fetch a value after 3 failed attempts where exceptions were thrown out.',
+        ];
+
+        $helper = (new Helper())->setException(Exception::class);
+        $data[] = [
+            $helper,
+            new ExponentialBackoff(
+                new class($helper) extends AbstractRetryCondition {
+                    public function __construct(protected readonly Helper $helper)
+                    {
+                    }
+
+                    public function met(mixed $result, ?Exception $e): bool
+                    {
+                        return $this->helper->getCurrentAttempts() - 1 > $this->helper->getExpectedFailedAttempts();
+                    }
+                }
+            ),
+            $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...),
+            'fetch a value after 3 failed attempts through a self-defined retry function.',
+        ];
+
+        return $data;
     }
 
     /**
@@ -114,7 +130,7 @@ class ExponentialBackoffTest extends TestCase
         $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
         $elapsed = microtime(true) - $start;
 
-        self::assertGreaterThanOrEqual($expectedMin, $elapsed, $message);
+        self::assertGreaterThanOrEqual($expectedMin - self::TIMER_TOLERANCE, $elapsed, $message);
         self::assertLessThanOrEqual($expectedMax, $elapsed, $message);
     }
 

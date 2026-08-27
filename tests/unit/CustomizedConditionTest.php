@@ -21,8 +21,8 @@ namespace CrowdStar\Tests\Backoff;
 
 use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use Deminy\Counit\TestCase;
 use Exception;
-use PHPUnit\Framework\TestCase;
 
 /**
  * Class CustomizedConditionTest
@@ -77,8 +77,8 @@ class CustomizedConditionTest extends TestCase
     {
         return [
             'Maximum # of attempts is 1 (exponential backoff disabled)' => [1],
-            'Maximum # of attempts is 2'                               => [2],
-            'Maximum # of attempts is 4'                               => [self::MAX_ATTEMPTS],
+            'Maximum # of attempts is 2'                                => [2],
+            'Maximum # of attempts is 4'                                => [self::MAX_ATTEMPTS],
         ];
     }
 

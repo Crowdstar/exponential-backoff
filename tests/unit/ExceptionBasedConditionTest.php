@@ -24,11 +24,11 @@ use BadFunctionCallException;
 use BadMethodCallException;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use Deminy\Counit\TestCase;
 use Error;
 use Exception;
 use LogicException;
 use PHPUnit\Framework\ExpectationFailedException;
-use PHPUnit\Framework\TestCase;
 use Throwable;
 use TypeError;
 
