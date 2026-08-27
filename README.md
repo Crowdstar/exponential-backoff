@@ -20,11 +20,15 @@ Exponential back-offs prevent overloading an unavailable service by doubling the
 an exponential back-off algorithm to calculate the timeout for the next request.
 
 This library allows doing exponential backoff in non-blocking mode in [Swoole](https://github.com/swoole/swoole-src).
+Swoole coroutines are detected automatically; pass a _\CrowdStar\Backoff\Sapi_ case as the second constructor parameter
+to force blocking or non-blocking mode.
 
 # Installation
 
+This library requires PHP 8.1 or above. For PHP 8.0 and below, use version 3.x instead.
+
 ```bash
-composer require crowdstar/exponential-backoff:~3.0.0
+composer require crowdstar/exponential-backoff:~4.0.0
 ```
 
 # Sample Usage
@@ -96,7 +100,7 @@ $backoff = new ExponentialBackoff(
         {
             return false;
         }
-        public function met($result, ?Exception $e): bool
+        public function met(mixed $result, ?Exception $e): bool
         {
             return (empty($e) || (!($e instanceof Exception)));
         }
@@ -126,7 +130,7 @@ use CrowdStar\Backoff\ExponentialBackoff;
 
 $backoff = new ExponentialBackoff(
     new class extends AbstractRetryCondition {
-        public function met($result, ?Exception $e): bool
+        public function met(mixed $result, ?Exception $e): bool
         {
             return !empty($result);
         }
@@ -154,13 +158,14 @@ use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Type;
 
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
 $backoff = new ExponentialBackoff(
     new class extends AbstractRetryCondition {
-        public function met($result, ?Exception $e): bool
+        public function met(mixed $result, ?Exception $e): bool
         {
             return (empty($e) || (!($e instanceof Exception)));
         }
@@ -168,8 +173,8 @@ $backoff = new ExponentialBackoff(
 );
 
 $backoff
-    ->setType(ExponentialBackoff::TYPE_SECONDS)
-    ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
+    ->setType(Type::Seconds)
+    ->setType(Type::Microseconds)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4);
 
