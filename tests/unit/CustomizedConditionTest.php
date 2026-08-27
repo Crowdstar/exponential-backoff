@@ -111,7 +111,7 @@ class CustomizedConditionTest extends TestCase
                 }
             }
         ));
-        $backoff->setMaxAttempts($maxAttempts);
+        $backoff->setSleeper(Helper::doNotSleep())->setMaxAttempts($maxAttempts);
 
         return $backoff;
     }

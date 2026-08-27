@@ -11,6 +11,7 @@
           * [Don't Throw Out an Exception When Finally Failed](#dont-throw-out-an-exception-when-finally-failed)
      * [3. Retry When Customized Condition Met](#3-retry-when-customized-condition-met)
      * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
+          * [Doing the Waiting Elsewhere](#doing-the-waiting-elsewhere)
      * [5. To Disable Exponential Backoff Temporarily](#5-to-disable-exponential-backoff-temporarily)
 * [Sample Scripts](#sample-scripts)
 
@@ -242,6 +243,34 @@ $result = $backoff->run(
 );
 ?>
 ```
+
+### Doing the Waiting Elsewhere
+
+Method _\CrowdStar\Backoff\ExponentialBackoff::setSleeper()_ hands the waiting over to a callback of yours, which
+receives the wait in microseconds. Two things it is for: waiting on an event loop this library knows nothing about,
+and tests — a callback that records and returns makes a retrying test instant, and lets it assert the timeouts that
+would have been waited for:
+
+```php
+<?php
+use CrowdStar\Backoff\EmptyValueCondition;
+use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Jitter;
+
+$slept   = [];
+$backoff = (new ExponentialBackoff(new EmptyValueCondition()))
+    ->setJitter(Jitter::None)
+    ->setSleeper(function (int $microSeconds) use (&$slept): void {
+        $slept[] = $microSeconds;
+    });
+
+$backoff->run(function () { return MyClass::fetchData(); });
+
+// $slept is now [250000, 500000, 1000000], and the test took no time at all.
+?>
+```
+
+A sleeper takes precedence over blocking and non-blocking mode both. Pass NULL to hand the waiting back.
 
 ## 5. To Disable Exponential Backoff Temporarily
 

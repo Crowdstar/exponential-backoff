@@ -63,6 +63,9 @@ class ExponentialBackoff
 
     protected int $maxTimeout = self::DEFAULT_MAX_TIMEOUT;
 
+    /** @var ?Closure(int): void */
+    protected ?Closure $sleeper = null;
+
     protected AbstractRetryCondition $retryCondition;
 
     /**
@@ -176,6 +179,23 @@ class ExponentialBackoff
         return $this->sleepsInCoroutine() ? Sapi::Swoole : Sapi::Default;
     }
 
+    /**
+     * Hand the waiting over to given callback instead of doing it here, which takes precedence over everything the
+     * Sapi cases cover. Two things this is for:
+     *
+     *   - waiting on an event loop this library knows nothing about -- ReactPHP, Amp, Revolt, a Fiber of your own;
+     *   - tests, where a callback that records what it was given and returns makes a retrying test both instant and
+     *     able to assert the timeouts it was supposed to wait for.
+     *
+     * @param ?Closure(int): void $sleeper receives the wait in microseconds; NULL to wait here again.
+     */
+    public function setSleeper(?Closure $sleeper): self
+    {
+        $this->sleeper = $sleeper;
+
+        return $this;
+    }
+
     public function getJitter(): Jitter
     {
         return $this->jitter;
@@ -284,6 +304,12 @@ class ExponentialBackoff
             $this->getMaxTimeout(),
             $this->getJitter()
         );
+
+        if ($this->sleeper !== null) {
+            ($this->sleeper)($microSeconds);
+
+            return;
+        }
 
         if ($this->sleepsInCoroutine()) {
             // Minimum execution delay in Swoole is 1ms.

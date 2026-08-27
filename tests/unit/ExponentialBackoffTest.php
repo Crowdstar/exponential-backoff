@@ -25,6 +25,7 @@ use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Jitter;
+use CrowdStar\Backoff\Sapi;
 use Deminy\Counit\TestCase;
 use Exception;
 
@@ -78,7 +79,7 @@ class ExponentialBackoffTest extends TestCase
         $helper = (new Helper())->setException(Exception::class);
         $data[] = [
             $helper,
-            new ExponentialBackoff(new EmptyValueCondition()),
+            (new ExponentialBackoff(new EmptyValueCondition()))->setSleeper(Helper::doNotSleep()),
             $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...),
             'fetch a non-empty value after 3 failed attempts where empty values were returned.',
         ];
@@ -86,7 +87,7 @@ class ExponentialBackoffTest extends TestCase
         $helper = (new Helper())->setException(Exception::class);
         $data[] = [
             $helper,
-            new ExponentialBackoff(new ExceptionBasedCondition()),
+            (new ExponentialBackoff(new ExceptionBasedCondition()))->setSleeper(Helper::doNotSleep()),
             $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...),
             'fetch a value after 3 failed attempts where exceptions were thrown out.',
         ];
@@ -94,7 +95,7 @@ class ExponentialBackoffTest extends TestCase
         $helper = (new Helper())->setException(Exception::class);
         $data[] = [
             $helper,
-            new ExponentialBackoff(
+            (new ExponentialBackoff(
                 new class($helper) extends AbstractRetryCondition {
                     public function __construct(protected readonly Helper $helper)
                     {
@@ -105,7 +106,7 @@ class ExponentialBackoffTest extends TestCase
                         return $this->helper->getAttemptsMade() <= $this->helper->getExpectedFailedAttempts();
                     }
                 }
-            ),
+            ))->setSleeper(Helper::doNotSleep()),
             $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...),
             'fetch a value after 3 failed attempts through a self-defined retry function.',
         ];
@@ -363,6 +364,74 @@ class ExponentialBackoffTest extends TestCase
             $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...))
         );
         self::assertLessThanOrEqual(0.2, microtime(true) - $start, 'three sleeps of at most 1ms each');
+    }
+
+    /**
+     * A sleeper that records instead of waiting is what lets this assert the timeouts themselves, rather than how long
+     * the whole run took. Nothing else in this suite checks the sequence.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setSleeper()
+     */
+    public function testSleeperReceivesEveryTimeout(): void
+    {
+        $slept   = [];
+        $helper  = new Helper();
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition()))
+            ->setJitter(Jitter::None)
+            ->setSleeper(function (int $microSeconds) use (&$slept): void {
+                $slept[] = $microSeconds;
+            })
+        ;
+
+        $start = microtime(true);
+        $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
+
+        self::assertSame([250_000, 500_000, 1_000_000], $slept, 'the timeout doubled on every retry');
+        self::assertLessThanOrEqual(0.1, microtime(true) - $start, 'and nothing actually waited');
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setSleeper()
+     */
+    public function testSleeperTakesPrecedenceOverTheSapi(): void
+    {
+        $slept   = 0;
+        $helper  = (new Helper())->setExpectedFailedAttempts(1);
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition(), Sapi::Swoole))
+            ->setSleeper(function () use (&$slept): void {
+                $slept++;
+            })
+        ;
+
+        self::assertSame(
+            $helper->getValue(),
+            $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...)),
+            'the run went through without Swoole being asked to sleep'
+        );
+        self::assertSame(1, $slept);
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setSleeper()
+     */
+    public function testSleeperCanBeTakenBackOut(): void
+    {
+        $helper  = (new Helper())->setExpectedFailedAttempts(1);
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition()))
+            ->setJitter(Jitter::None)
+            ->setInitialTimeout(200_000)
+            ->setSleeper(fn (): null => null)
+            ->setSleeper(null)
+        ;
+
+        $start = microtime(true);
+        $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
+
+        self::assertGreaterThanOrEqual(
+            0.2 - self::TIMER_TOLERANCE,
+            microtime(true) - $start,
+            'the wait happened here again'
+        );
     }
 
     /**

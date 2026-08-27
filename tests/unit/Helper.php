@@ -19,6 +19,7 @@ declare(strict_types=1);
 
 namespace CrowdStar\Tests\Backoff;
 
+use Closure;
 use Exception;
 
 /**
@@ -125,6 +126,18 @@ class Helper
     public function getAttemptsMade(): int
     {
         return $this->currentAttempts - 1;
+    }
+
+    /**
+     * A sleeper for ExponentialBackoff::setSleeper() that returns at once. For tests about what a run does rather
+     * than how long it takes: the waits are what makes this suite slow, and most of these tests never look at them.
+     *
+     * @return Closure(int): void
+     */
+    public static function doNotSleep(): Closure
+    {
+        return static function (int $microSeconds): void {
+        };
     }
 
     public function getException(): string

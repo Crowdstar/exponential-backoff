@@ -58,6 +58,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   never retried. Ignored types take priority over the types being retried on, so "retry every _HttpException_ except
   _HttpBadRequestException_" no longer means enumerating every sibling of the one exception to be left alone. An
   ignored exception ends the run at once and is thrown out, the same as one that was never covered.
+* Method _ExponentialBackoff::setSleeper()_, handing the waiting over to a callback that receives the wait in
+  microseconds. It takes precedence over both _Sapi_ modes, and is for waiting on an event loop this library knows
+  nothing about — ReactPHP, Amp, Revolt, a Fiber of your own — or for tests, where a callback that records and returns
+  makes a retrying test instant and lets it assert the timeouts that would have been waited for.
 
 ### Fixed
 

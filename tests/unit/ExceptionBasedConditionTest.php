@@ -55,6 +55,7 @@ class ExceptionBasedConditionTest extends TestCase
                 ->setExpectedFailedAttempts($expectedFailedAttempts)
             ;
             $backoff = (new ExponentialBackoff(new ExceptionBasedCondition($exceptionToCatch)))
+                ->setSleeper(Helper::doNotSleep())
                 ->setMaxAttempts($maxAttempts)
             ;
 
@@ -148,6 +149,7 @@ class ExceptionBasedConditionTest extends TestCase
     public function testUnsuccessfulRetries(int $expectedFailedAttempts, int $maxAttempts): void
     {
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(Exception::class)))
+            ->setSleeper(Helper::doNotSleep())
             ->setMaxAttempts($maxAttempts)
         ;
 
