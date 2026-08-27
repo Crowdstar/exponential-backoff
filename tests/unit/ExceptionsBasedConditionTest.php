@@ -46,7 +46,7 @@ class ExceptionsBasedConditionTest extends TestCase
      * @param string[] $exceptionsToCatch
      * @param string[] $exceptionsToThrow
      * @dataProvider dataSuccessfulRetries
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::shouldRetry()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
     public function testSuccessfulRetries(array $exceptionsToCatch, array $exceptionsToThrow, string $message): void
@@ -183,7 +183,7 @@ class ExceptionsBasedConditionTest extends TestCase
      * @param string[] $exceptionsToCatch
      * @param string[] $exceptionsToThrow
      * @dataProvider dataUnsuccessfulRetries
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::met()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::shouldRetry()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
     public function testUnsuccessfulRetries(

@@ -34,9 +34,9 @@ $condition = new class($helper) extends AbstractRetryCondition {
     {
     }
 
-    public function met(mixed $result, ?Exception $e): bool
+    public function shouldRetry(mixed $result, ?Exception $e): bool
     {
-        return $this->helper->reachExpectedAttempts();
+        return !$this->helper->reachExpectedAttempts();
     }
 };
 

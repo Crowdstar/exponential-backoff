@@ -31,8 +31,8 @@ class NullCondition extends AbstractRetryCondition
     /**
      * {@inheritdoc}
      */
-    public function met(mixed $result, ?Exception $e): bool
+    public function shouldRetry(mixed $result, ?Exception $e): bool
     {
-        return true;
+        return false;
     }
 }

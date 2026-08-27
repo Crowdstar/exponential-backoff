@@ -250,7 +250,7 @@ class ExponentialBackoff
 
     protected function retry(mixed $result, ?\Exception $e, int $attempt): bool
     {
-        if ($this->getRetryCondition()->met($result, $e)) {
+        if (!$this->getRetryCondition()->shouldRetry($result, $e)) {
             return false;
         }
 

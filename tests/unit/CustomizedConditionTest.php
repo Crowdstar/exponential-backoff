@@ -101,13 +101,13 @@ class CustomizedConditionTest extends TestCase
                     return $this->throwable;
                 }
 
-                public function met(mixed $result, ?Exception $e): bool
+                public function shouldRetry(mixed $result, ?Exception $e): bool
                 {
                     if ($e === null) {
-                        return true;
+                        return false;
                     }
                     $this->throwable = !$this->silenceWhenFailed;
-                    return false;
+                    return true;
                 }
             }
         ));

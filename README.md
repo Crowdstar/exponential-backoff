@@ -101,9 +101,9 @@ $backoff = new ExponentialBackoff(
         {
             return false;
         }
-        public function met(mixed $result, ?Exception $e): bool
+        public function shouldRetry(mixed $result, ?Exception $e): bool
         {
-            return (empty($e) || (!($e instanceof Exception)));
+            return ($e instanceof Exception);
         }
     }
 );
@@ -131,9 +131,9 @@ use CrowdStar\Backoff\ExponentialBackoff;
 
 $backoff = new ExponentialBackoff(
     new class extends AbstractRetryCondition {
-        public function met(mixed $result, ?Exception $e): bool
+        public function shouldRetry(mixed $result, ?Exception $e): bool
         {
-            return !empty($result);
+            return empty($result);
         }
     }
 );
@@ -166,9 +166,9 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
 $backoff = new ExponentialBackoff(
     new class extends AbstractRetryCondition {
-        public function met(mixed $result, ?Exception $e): bool
+        public function shouldRetry(mixed $result, ?Exception $e): bool
         {
-            return (empty($e) || (!($e instanceof Exception)));
+            return ($e instanceof Exception);
         }
     }
 );

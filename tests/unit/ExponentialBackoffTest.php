@@ -100,9 +100,9 @@ class ExponentialBackoffTest extends TestCase
                     {
                     }
 
-                    public function met(mixed $result, ?Exception $e): bool
+                    public function shouldRetry(mixed $result, ?Exception $e): bool
                     {
-                        return $this->helper->getCurrentAttempts() - 1 > $this->helper->getExpectedFailedAttempts();
+                        return $this->helper->getAttemptsMade() <= $this->helper->getExpectedFailedAttempts();
                     }
                 }
             ),

@@ -16,12 +16,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   expressed — a tenth of a second, or a second and a half.
 * **BREAKING** The second parameter of _ExponentialBackoff::__construct()_ is now `?CrowdStar\Backoff\Sapi` instead of
   an integer, and defaults to NULL (autodetect) instead of 0.
-* Method _AbstractRetryCondition::met()_ now declares its first parameter as `mixed`. Existing subclasses that leave the
-  parameter untyped keep working.
-* Class properties now use native types.
-* **BREAKING** The protected property _ExponentialBackoff::$sapi_ now holds what the caller asked for — a
-  _CrowdStar\Backoff\Sapi_ case, or NULL to have it worked out per wait — rather than the mode a wait happens in. Use
-  the new _::getSapi()_ for the latter.
+* **BREAKING** Method _AbstractRetryCondition::met()_ is now _::shouldRetry()_, and it answers the opposite question:
+  return TRUE to try the call again, where _met()_ returned TRUE to stop. Every other retry library phrases this the way
+  around _shouldRetry()_ does, and _met()_ conflated "this succeeded" with "give up on this", which is why the shipped
+  conditions read as double negatives. The method also declares its first parameter as `mixed` now.
+
+  Renaming and inverting together is deliberate: because _met()_ is gone, a condition that still implements it fails to
+  declare itself at all — a fatal error naming the method — rather than quietly retrying whenever it used to stop.
 * **BREAKING** A single timeout is now capped at 30 seconds by default, configurable with
   _ExponentialBackoff::setMaxTimeout()_. Timeouts double until they reach the cap and stay there, where before they
   doubled without limit. With the default of 4 attempts the longest timeout is 1 second, so the default behavior is
@@ -41,8 +42,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-* Enum _CrowdStar\Backoff\Sapi_, replacing the protected constants _ExponentialBackoff::SAPI_DEFAULT_ and
-  _ExponentialBackoff::SAPI_SWOOLE_. Unlike those, it can be used by callers to force blocking or non-blocking mode.
+* Enum _CrowdStar\Backoff\Sapi_, which callers can pass as the second constructor parameter to force blocking or
+  non-blocking mode instead of having it worked out per wait.
 * Methods _ExponentialBackoff::setInitialTimeout()_, _::getInitialTimeout()_, _::setMaxTimeout()_ and
   _::getMaxTimeout()_, plus constants _ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT_ and _::DEFAULT_MAX_TIMEOUT_.
 * Method _ExponentialBackoff::getSapi()_, telling which mode a wait would happen in right now.
@@ -75,21 +76,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * **BREAKING** Method _ExponentialBackoff::getTimeoutSeconds()_. It rounded timeouts down to whole seconds, which
   discarded the randomness of anything under ten seconds, and it existed only to serve the removed seconds mode. Divide
   the result of _::getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
-* **BREAKING** The protected constants _ExponentialBackoff::SAPI_DEFAULT_ and _ExponentialBackoff::SAPI_SWOOLE_. Use
-  enum _CrowdStar\Backoff\Sapi_ instead.
-* **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x, along with the protected
-  property _$currentAttempts_ it read and the protected method _::increaseCurrentAttempts()_. The attempt counter is now
-  a local variable of _::run()_, passed to the protected methods _::retry()_ and _::sleep()_, both of which therefore
-  take one parameter more; _::sleep()_ also returns nothing instead of `self`.
+* **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x. There is no replacement: the
+  attempt counter belongs to a single run and is no longer kept on the object.
 * **BREAKING** Methods _ExceptionBasedCondition::getException()_ and _ExceptionBasedCondition::setException()_,
   deprecated since 3.0.10. Use _::getExceptions()_ and _::setExceptions()_ instead, which handle one or more types.
 * Exceptions previously thrown for an invalid backoff type or an invalid `$sapi` value. Both are now impossible, so
-  _ExponentialBackoff::__construct()_ and the protected methods _::retry()_ and _::sleep()_ no longer throw.
+  _ExponentialBackoff::__construct()_ no longer throws.
 
 ### Migration from 3.x
 
 1. Require PHP 8.1 or above.
-2. Replace the type constants with an initial timeout in microseconds:
+2. Rename _met()_ to _shouldRetry()_ in every condition of your own, and negate what it returns:
+   ```php
+   public function met(mixed $result, ?Exception $e): bool          // 3.x
+   {
+       return !empty($result);                                      // TRUE meant "stop, this worked"
+   }
+
+   public function shouldRetry(mixed $result, ?Exception $e): bool  // 4.0
+   {
+       return empty($result);                                       // TRUE means "try again"
+   }
+   ```
+   Conditions written around exceptions usually get shorter: `return (empty($e) || (!($e instanceof Exception)));`
+   becomes `return ($e instanceof Exception);`. A condition left implementing _met()_ raises a fatal error saying
+   _shouldRetry()_ is not implemented, so nothing silently starts retrying where it used to stop.
+3. Replace the type constants with an initial timeout in microseconds:
    ```php
    $backoff->setType(ExponentialBackoff::TYPE_SECONDS);        // 3.x
    $backoff->setInitialTimeout(1_000_000);                     // 4.0
@@ -99,19 +111,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    ```
    Any other timeout works as well now: `setInitialTimeout(100_000)` waits about a tenth of a second before the first
    retry. Method _getTimeoutSeconds()_ is gone; divide _getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
-3. If you passed the second constructor parameter, pass an enum case instead of an integer:
+4. If you passed the second constructor parameter, pass an enum case instead of an integer:
    ```php
    new ExponentialBackoff($condition, 2);                          // 3.x
    new ExponentialBackoff($condition, \CrowdStar\Backoff\Sapi::Swoole); // 4.0
    ```
    Pass NULL, or nothing at all, to keep autodetecting Swoole coroutines.
-4. Replace the singular exception accessors on _ExceptionBasedCondition_ with the plural ones:
+5. Replace the singular exception accessors on _ExceptionBasedCondition_ with the plural ones:
    ```php
    $condition->setException(Exception::class);      // 3.x
    $condition->setExceptions(Exception::class);     // 4.0, accepts one or more types
    ```
    Method _getExceptions()_ returns a `string[]` where _getException()_ returned a single class name.
-5. Drop any call to _ExponentialBackoff::getCurrentAttempts()_. There is no replacement; the attempt counter is
+6. Drop any call to _ExponentialBackoff::getCurrentAttempts()_. There is no replacement; the attempt counter is
    internal.
 
 ## [3.0.12] - 2026-04-19

@@ -46,19 +46,20 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     /**
      * {@inheritdoc}
      */
-    public function met(mixed $result, ?BaseException $e): bool
+    public function shouldRetry(mixed $result, ?BaseException $e): bool
     {
-        if (empty($e)) {
-            return true;
+        if ($e === null) {
+            return false; // The call went through.
         }
 
         foreach ($this->getExceptions() as $exception) {
             if ($e instanceof $exception) {
-                return false;
+                return true;
             }
         }
 
-        return true;
+        // Something else was thrown, which retrying is not going to help with. ExponentialBackoff::run() throws it.
+        return false;
     }
 
     /**

@@ -40,10 +40,12 @@ abstract class AbstractRetryCondition
     }
 
     /**
-     * Don't retry if conditions met.
+     * Whether the attempt just made should be tried again.
      *
-     * @return bool return TRUE if conditions met, otherwise return FALSE.
+     * @param mixed      $result what the closure returned, or NULL when it threw.
+     * @param ?Exception $e      what the closure threw, or NULL when it returned.
+     * @return bool return TRUE to attempt the call again, FALSE to stop and take what the last attempt produced.
      * @see ExponentialBackoff::retry()
      */
-    abstract public function met(mixed $result, ?Exception $e): bool;
+    abstract public function shouldRetry(mixed $result, ?Exception $e): bool;
 }
