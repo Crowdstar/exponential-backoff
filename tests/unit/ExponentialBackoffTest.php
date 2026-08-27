@@ -25,7 +25,6 @@ use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Jitter;
-use CrowdStar\Backoff\Type;
 use Deminy\Counit\TestCase;
 use Exception;
 
@@ -117,7 +116,6 @@ class ExponentialBackoffTest extends TestCase
     /**
      * @dataProvider dataDelays
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds()
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds()
      * @covers \CrowdStar\Backoff\ExponentialBackoff::run()
      */
     public function testDelays(
@@ -175,7 +173,7 @@ class ExponentialBackoffTest extends TestCase
             [
                 (new ExponentialBackoff(new EmptyValueCondition()))
                     ->setJitter(Jitter::None)
-                    ->setType(Type::Seconds)
+                    ->setInitialTimeout(1_000_000)
                     ->setMaxAttempts(1),
                 0.0,
                 0.2,
@@ -184,7 +182,7 @@ class ExponentialBackoffTest extends TestCase
             [
                 (new ExponentialBackoff(new EmptyValueCondition()))
                     ->setJitter(Jitter::None)
-                    ->setType(Type::Seconds)
+                    ->setInitialTimeout(1_000_000)
                     ->setMaxAttempts(2),
                 1.0,
                 1.2,
@@ -193,14 +191,16 @@ class ExponentialBackoffTest extends TestCase
             [
                 (new ExponentialBackoff(new EmptyValueCondition()))
                     ->setJitter(Jitter::None)
-                    ->setType(Type::Seconds)
+                    ->setInitialTimeout(1_000_000)
                     ->setMaxAttempts(3),
                 3.0,
                 3.2,
                 'It takes barely over 3 seconds to do exponential backoff with maximum # of attempts "3".',
             ],
             [
-                (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None)->setType(Type::Seconds),
+                (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setJitter(Jitter::None)
+                    ->setInitialTimeout(1_000_000),
                 7.0,
                 7.2,
                 'It takes barely over 7 seconds to do exponential backoff with a default maximum # of attempts "4".',
@@ -209,50 +209,13 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * @dataProvider dataGetTimeoutSeconds
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
-     */
-    public function testGetTimeoutSeconds(int $expected, int $iteration, int $initialTimeout): void
-    {
-        // These data sets characterise the doubling curve itself, so they opt out of both the maximum timeout and
-        // the randomness. See self::testJitter() for what the randomness does to these timeouts.
-        self::assertSame(
-            $expected,
-            ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout, 3600, Jitter::None),
-            sprintf('For round #%d with initial timeout %d.', $iteration, $initialTimeout)
-        );
-    }
-
-    /**
-     * @return array<array<int>>
-     */
-    public static function dataGetTimeoutSeconds(): array
-    {
-        // Test data to help to understand how timeouts are calculated, with input data in following order:
-        //     ($expected, $iteration, $initialTimeout)
-        $data = [
-            [50 * 1, 1, 50],
-            [60 * 2, 2, 60],
-            [70 * 4, 3, 70],
-
-            // Exactly same input data as above 3 ones, just to help to understand the timeouts better.
-            [50, 1, 50],
-            [120, 2, 60],
-            [280, 3, 70],
-        ];
-
-        // Since we are testing methods with random output, repeat tests on same data for 20 (4 * 5) times.
-        $data = array_merge($data, $data, $data, $data);
-        return array_merge($data, $data, $data, $data, $data);
-    }
-
-    /**
      * @dataProvider dataGetTimeoutMicroseconds
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
      */
     public function testGetTimeoutMicroseconds(int $expected, int $iteration, int $initialTimeout): void
     {
-        // As with self::testGetTimeoutSeconds(), these data sets are about the doubling curve, not the randomness.
+        // These data sets characterise the doubling curve itself, so they opt out of the randomness. See
+        // self::testJitter() for what the randomness does to these timeouts.
         self::assertSame(
             $expected,
             ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout, jitter: Jitter::None),
@@ -340,16 +303,30 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
      */
-    public function testMaxTimeoutInSeconds(): void
+    public function testDefaultMaxTimeout(): void
     {
-        self::assertSame(30, ExponentialBackoff::getTimeoutSeconds(200, 1, 30, Jitter::None), 'the given cap applies');
         self::assertSame(
-            30,
-            ExponentialBackoff::getTimeoutSeconds(200, 1, null, Jitter::None),
-            'the default maximum timeout of 30 seconds applies when none is given'
+            ExponentialBackoff::DEFAULT_MAX_TIMEOUT,
+            ExponentialBackoff::getTimeoutMicroseconds(200, jitter: Jitter::None),
+            'the default maximum timeout applies when none is given'
         );
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setInitialTimeout
+     */
+    public function testSetInitialTimeout(): void
+    {
+        $backoff = new ExponentialBackoff(new EmptyValueCondition());
+
+        self::assertSame(ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT, $backoff->getInitialTimeout());
+        self::assertSame(1_000_000, $backoff->setInitialTimeout(1_000_000)->getInitialTimeout());
+
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage('initial timeout must be at least 1 microsecond');
+        $backoff->setInitialTimeout(0);
     }
 
     /**

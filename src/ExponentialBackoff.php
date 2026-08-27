@@ -49,7 +49,7 @@ class ExponentialBackoff
      */
     public const DEFAULT_JITTER = Jitter::Full;
 
-    protected Type $type = Type::Microseconds;
+    protected int $initialTimeout = self::DEFAULT_INITIAL_TIMEOUT;
 
     protected Jitter $jitter = self::DEFAULT_JITTER;
 
@@ -112,14 +112,24 @@ class ExponentialBackoff
         return $this->setMaxAttempts(1);
     }
 
-    public function getType(): Type
+    public function getInitialTimeout(): int
     {
-        return $this->type;
+        return $this->initialTimeout;
     }
 
-    public function setType(Type $type): self
+    /**
+     * Set how long to wait before the first retry; every timeout after that doubles it, up to the maximum.
+     *
+     * @param int $initialTimeout the initial timeout in microseconds. Pass 1000000 for one second.
+     * @throws Exception
+     */
+    public function setInitialTimeout(int $initialTimeout): self
     {
-        $this->type = $type;
+        if ($initialTimeout < 1) {
+            throw new Exception('initial timeout must be at least 1 microsecond');
+        }
+
+        $this->initialTimeout = $initialTimeout;
 
         return $this;
     }
@@ -161,8 +171,7 @@ class ExponentialBackoff
     }
 
     /**
-     * Cap how long a single timeout may grow to. In Type::Seconds mode the value is rounded down to whole seconds,
-     * with one second as the minimum.
+     * Cap how long a single timeout may grow to.
      *
      * @param int $maxTimeout the maximum timeout in microseconds.
      * @throws Exception
@@ -188,30 +197,6 @@ class ExponentialBackoff
         $this->retryCondition = $retryCondition;
 
         return $this;
-    }
-
-    /**
-     * Get the next timeout in seconds.
-     *
-     * Randomness is applied to microseconds and only then rounded down, so anything below one second is lost. Use
-     * self::getTimeoutMicroseconds() where that matters.
-     *
-     * @param ?int $maxTimeout the maximum timeout in seconds; self::DEFAULT_MAX_TIMEOUT when NULL.
-     */
-    public static function getTimeoutSeconds(
-        int $iteration,
-        int $initialTimeout = 1,
-        ?int $maxTimeout = null,
-        Jitter $jitter = self::DEFAULT_JITTER
-    ): int {
-        return (int) (
-            self::getTimeoutMicroseconds(
-                $iteration,
-                self::toMicroseconds($initialTimeout),
-                ($maxTimeout === null) ? self::DEFAULT_MAX_TIMEOUT : self::toMicroseconds($maxTimeout),
-                $jitter
-            ) / 1_000_000
-        );
     }
 
     /**
@@ -253,14 +238,6 @@ class ExponentialBackoff
         };
     }
 
-    /**
-     * Convert seconds to microseconds, saturating instead of overflowing on absurdly large input.
-     */
-    protected static function toMicroseconds(int $seconds): int
-    {
-        return ($seconds > intdiv(PHP_INT_MAX, 1_000_000)) ? PHP_INT_MAX : ($seconds * 1_000_000);
-    }
-
     protected function increaseCurrentAttempts(): self
     {
         $this->currentAttempts++;
@@ -285,17 +262,10 @@ class ExponentialBackoff
 
     protected function sleep(): self
     {
-        // Both types are computed in microseconds. Going through self::getTimeoutSeconds() for Type::Seconds would
-        // round the randomness down to whole seconds, which for a one-second timeout rounds nearly all of it away.
-        $initialTimeout = match ($this->getType()) {
-            Type::Microseconds => self::DEFAULT_INITIAL_TIMEOUT,
-            Type::Seconds      => 1_000_000,
-        };
-
         $microSeconds = self::getTimeoutMicroseconds(
             $this->currentAttempts,
-            $initialTimeout,
-            $this->maxTimeout,
+            $this->getInitialTimeout(),
+            $this->getMaxTimeout(),
             $this->getJitter()
         );
 
@@ -303,7 +273,7 @@ class ExponentialBackoff
             // Minimum execution delay in Swoole is 1ms.
             Coroutine::sleep(max($microSeconds / 1_000_000, 0.001));
         } else {
-            // ponytail: usleep() covers both units; PHP implements it via nanosleep(), so multi-second waits are fine.
+            // ponytail: PHP implements usleep() via nanosleep(), so multi-second waits are fine here.
             usleep($microSeconds);
         }
 

@@ -27,7 +27,6 @@ use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Jitter;
-use CrowdStar\Backoff\Type;
 use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
@@ -50,8 +49,8 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class))
 $backoff = new ExponentialBackoff($condition);
 
 $backoff
-    ->setType(Type::Seconds)
-    ->setType(Type::Microseconds)
+    ->setInitialTimeout(1_000_000)  // Wait about 1 second before the first retry.
+    ->setInitialTimeout(ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
     ->setMaxTimeout(5_000_000)

@@ -159,7 +159,6 @@ use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Jitter;
-use CrowdStar\Backoff\Type;
 
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
@@ -174,12 +173,12 @@ $backoff = new ExponentialBackoff(
 );
 
 $backoff
-    ->setType(Type::Seconds)
-    ->setType(Type::Microseconds)
+    ->setInitialTimeout(1_000_000)  // Wait about 1 second before the first retry.
+    ->setInitialTimeout(ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
     ->setMaxTimeout(5_000_000)  // Wait at most 5 seconds between two attempts.
-    ->setMaxTimeout(\CrowdStar\Backoff\ExponentialBackoff::DEFAULT_MAX_TIMEOUT)
+    ->setMaxTimeout(ExponentialBackoff::DEFAULT_MAX_TIMEOUT)
     ->setJitter(Jitter::Equal)  // Wait at least half of the calculated timeout, and randomly up to all of it.
     ->setJitter(Jitter::None)   // Wait exactly as long as calculated; predictable, but no protection from collisions.
     ->setJitter(Jitter::Full);  // Wait anywhere between nothing and the calculated timeout. The default.

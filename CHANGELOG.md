@@ -10,8 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 * **BREAKING** PHP 8.1 or above is now required. PHP 8.0 and below are no longer supported; use version 3.x there.
-* **BREAKING** Methods _ExponentialBackoff::setType()_ and _ExponentialBackoff::getType()_ now take and return enum
-  _CrowdStar\Backoff\Type_ instead of an integer.
+* **BREAKING** The unit of a timeout is no longer a choice: timeouts are always expressed in microseconds, and how long
+  to wait before the first retry is set with _ExponentialBackoff::setInitialTimeout()_ rather than picked from two
+  hardcoded values. This is what the removed _setType()_ was standing in for, and unlike it, any timeout can now be
+  expressed — a tenth of a second, or a second and a half.
 * **BREAKING** The second parameter of _ExponentialBackoff::__construct()_ is now `?CrowdStar\Backoff\Sapi` instead of
   an integer, and defaults to NULL (autodetect) instead of 0.
 * Method _AbstractRetryCondition::met()_ now declares its first parameter as `mixed`. Existing subclasses that leave the
@@ -21,28 +23,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   _ExponentialBackoff::setMaxTimeout()_. Timeouts double until they reach the cap and stay there, where before they
   doubled without limit. With the default of 4 attempts the longest timeout is 1 second, so the default behavior is
   unchanged; runs configured with more attempts than that now wait considerably less.
-* **BREAKING** Methods _ExponentialBackoff::getTimeoutMicroseconds()_ and _::getTimeoutSeconds()_ take a maximum
-  timeout as their third parameter and a _CrowdStar\Backoff\Jitter_ case as their fourth. Pass them explicitly to opt
-  out of the default cap and of the default randomness.
+* **BREAKING** Method _ExponentialBackoff::getTimeoutMicroseconds()_ takes a maximum timeout as its third parameter and
+  a _CrowdStar\Backoff\Jitter_ case as its fourth. Pass them explicitly to opt out of the default cap and of the
+  default randomness.
 * **BREAKING** A timeout is now randomized over its whole length instead of being lengthened by up to 10%, and the
   amount of randomness is configurable with _ExponentialBackoff::setJitter()_. Waits are therefore shorter on average
   and no longer predictable: a timeout has become the longest a wait may take rather than the shortest. Clients that
   failed together are what this spreads out; the measurements behind it are in the AWS article linked from enum
   _CrowdStar\Backoff\Jitter_. Pass _Jitter::None_ for the previous predictability, or _Jitter::Equal_ to keep at least
   half of every timeout.
-* In _Type::Seconds_ mode the randomness is no longer rounded away. Timeouts are calculated in microseconds for both
-  types, where before seconds-mode timeouts were rounded down to whole seconds after being randomized — which for a
-  one-second timeout discarded the randomness entirely, leaving every client to retry in lockstep. Method
-  _::getTimeoutSeconds()_ still rounds, and is no longer used internally.
+* The randomness is no longer rounded away for timeouts of about a second. Where a seconds-mode timeout used to be
+  rounded down to whole seconds after being randomized — which for a one-second timeout discarded the randomness
+  entirely, leaving every client to retry in lockstep — nothing rounds any more.
 
 ### Added
 
-* Enum _CrowdStar\Backoff\Type_, replacing constants _ExponentialBackoff::TYPE_MICROSECONDS_ and
-  _ExponentialBackoff::TYPE_SECONDS_.
 * Enum _CrowdStar\Backoff\Sapi_, replacing the protected constants _ExponentialBackoff::SAPI_DEFAULT_ and
   _ExponentialBackoff::SAPI_SWOOLE_. Unlike those, it can be used by callers to force blocking or non-blocking mode.
-* Methods _ExponentialBackoff::setMaxTimeout()_ and _::getMaxTimeout()_, plus constants
-  _ExponentialBackoff::DEFAULT_MAX_TIMEOUT_ and _::DEFAULT_INITIAL_TIMEOUT_.
+* Methods _ExponentialBackoff::setInitialTimeout()_, _::getInitialTimeout()_, _::setMaxTimeout()_ and
+  _::getMaxTimeout()_, plus constants _ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT_ and _::DEFAULT_MAX_TIMEOUT_.
 * Enum _CrowdStar\Backoff\Jitter_ with cases _None_, _Full_ and _Equal_, along with methods
   _ExponentialBackoff::setJitter()_ and _::getJitter()_ and constant _ExponentialBackoff::DEFAULT_JITTER_.
 
@@ -57,8 +56,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Removed
 
-* **BREAKING** Constants _ExponentialBackoff::TYPE_MICROSECONDS_, _ExponentialBackoff::TYPE_SECONDS_,
-  _ExponentialBackoff::SAPI_DEFAULT_, and _ExponentialBackoff::SAPI_SWOOLE_. Use the enums instead.
+* **BREAKING** Constants _ExponentialBackoff::TYPE_MICROSECONDS_ and _ExponentialBackoff::TYPE_SECONDS_ along with
+  methods _::setType()_ and _::getType()_. Use _::setInitialTimeout()_ instead.
+* **BREAKING** Method _ExponentialBackoff::getTimeoutSeconds()_. It rounded timeouts down to whole seconds, which
+  discarded the randomness of anything under ten seconds, and it existed only to serve the removed seconds mode. Divide
+  the result of _::getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
+* **BREAKING** The protected constants _ExponentialBackoff::SAPI_DEFAULT_ and _ExponentialBackoff::SAPI_SWOOLE_. Use
+  enum _CrowdStar\Backoff\Sapi_ instead.
 * **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x. Property
   _ExponentialBackoff::$currentAttempts_ no longer carries an initial value either: it is set by _::run()_ before the
   first attempt, so reading it through reflection before a run now raises an _Error_ instead of returning 1.
@@ -70,13 +74,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Migration from 3.x
 
 1. Require PHP 8.1 or above.
-2. Replace the type constants with enum cases:
+2. Replace the type constants with an initial timeout in microseconds:
    ```php
-   $backoff->setType(ExponentialBackoff::TYPE_SECONDS);      // 3.x
-   $backoff->setType(\CrowdStar\Backoff\Type::Seconds);      // 4.0
+   $backoff->setType(ExponentialBackoff::TYPE_SECONDS);        // 3.x
+   $backoff->setInitialTimeout(1_000_000);                     // 4.0
+
+   $backoff->setType(ExponentialBackoff::TYPE_MICROSECONDS);   // 3.x — this was the default
+   $backoff->setInitialTimeout(250_000);                       // 4.0 — still the default, so drop the call
    ```
-   Method _getType()_ returns a _Type_ instead of an integer. Use `$backoff->getType()->value` if you need the old
-   integer, the enums are backed by the same values as the removed constants.
+   Any other timeout works as well now: `setInitialTimeout(100_000)` waits about a tenth of a second before the first
+   retry. Method _getTimeoutSeconds()_ is gone; divide _getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
 3. If you passed the second constructor parameter, pass an enum case instead of an integer:
    ```php
    new ExponentialBackoff($condition, 2);                          // 3.x
