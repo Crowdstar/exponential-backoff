@@ -19,19 +19,13 @@ declare(strict_types=1);
 
 namespace CrowdStar\Backoff;
 
-use Exception;
-
 /**
- * Class EmptyValueCondition
- * Do a retry if return value is empty.
+ * How to sleep between attempts: blocking (plain PHP) or non-blocking (inside a Swoole coroutine).
+ *
+ * Values match the ExponentialBackoff::SAPI_* constants used before version 4.0.
  */
-class EmptyValueCondition extends AbstractRetryCondition
+enum Sapi: int
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function met(mixed $result, ?Exception $e): bool
-    {
-        return !empty($result);
-    }
+    case Default = 1;
+    case Swoole  = 2;
 }

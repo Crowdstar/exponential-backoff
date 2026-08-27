@@ -42,9 +42,8 @@ abstract class AbstractRetryCondition
     /**
      * Don't retry if conditions met.
      *
-     * @param mixed $result
      * @return bool return TRUE if conditions met, otherwise return FALSE.
      * @see ExponentialBackoff::retry()
      */
-    abstract public function met($result, ?Exception $e): bool;
+    abstract public function met(mixed $result, ?Exception $e): bool;
 }

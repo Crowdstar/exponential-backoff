@@ -32,67 +32,36 @@ class ExponentialBackoff
 {
     public const DEFAULT_MAX_ATTEMPTS = 4;
 
-    public const TYPE_MICROSECONDS = 1;
+    protected Type $type = Type::Microseconds;
 
-    public const TYPE_SECONDS      = 2;
+    protected readonly Sapi $sapi;
 
-    protected const SAPI_DEFAULT = 1;
-
-    protected const SAPI_SWOOLE  = 2;
+    protected int $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
 
     /**
-     * @var int
-     */
-    protected $type = self::TYPE_MICROSECONDS;
-
-    /**
-     * @var int
-     * @see ExponentialBackoff::SAPI_DEFAULT
-     * @see ExponentialBackoff::SAPI_SWOOLE
-     */
-    protected $sapi;
-
-    /**
-     * @var int
-     */
-    protected $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
-
-    /**
-     * @var int
-     *
      * @todo Drop the initial value in version 4.0 (once we have method $this->>getCurrentAttempts() removed).
      */
-    protected $currentAttempts = 1;
+    protected int $currentAttempts = 1;
+
+    protected AbstractRetryCondition $retryCondition;
 
     /**
-     * @var AbstractRetryCondition
+     * @param ?Sapi $sapi how to sleep between attempts; autodetected when NULL.
      */
-    protected $retryCondition;
-
-    /**
-     * @throws Exception
-     */
-    public function __construct(AbstractRetryCondition $retryCondition, int $sapi = 0)
+    public function __construct(AbstractRetryCondition $retryCondition, ?Sapi $sapi = null)
     {
-        if ($sapi !== 0) {
-            if (($sapi !== self::SAPI_DEFAULT) && ($sapi !== self::SAPI_SWOOLE)) {
-                throw new Exception(sprintf('Second parameter $sapi must be either %s::SAPI_DEFAULT or %s::SAPI_SWOOLE.', self::class, self::class));
-            }
-            $this->sapi = $sapi;
-        } elseif (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) {
-            $this->sapi = self::SAPI_SWOOLE; // If running inside a coroutine created by Swoole.
-        } else {
-            $this->sapi = self::SAPI_DEFAULT;
-        }
+        // Sleep in non-blocking mode only when running inside a coroutine created by Swoole.
+        $this->sapi = $sapi ?? (
+            (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) ? Sapi::Swoole : Sapi::Default
+        );
 
         $this->setRetryCondition($retryCondition);
     }
 
     /**
-     * @return mixed
      * @throws Exception
      */
-    public function run(Closure $c, ...$params) // @phpstan-ignore-line
+    public function run(Closure $c, mixed ...$params): mixed
     {
         $this->currentAttempts = 1; // Force to reset # of current attempts.
 
@@ -122,12 +91,12 @@ class ExponentialBackoff
         return $this->setMaxAttempts(1);
     }
 
-    public function getType(): int
+    public function getType(): Type
     {
         return $this->type;
     }
 
-    public function setType(int $type): self
+    public function setType(Type $type): self
     {
         $this->type = $type;
 
@@ -199,11 +168,7 @@ class ExponentialBackoff
         return $this;
     }
 
-    /**
-     * @param mixed $result
-     * @throws Exception
-     */
-    protected function retry($result, ?\Exception $e): bool
+    protected function retry(mixed $result, ?\Exception $e): bool
     {
         if ($this->getRetryCondition()->met($result, $e)) {
             return false;
@@ -218,38 +183,19 @@ class ExponentialBackoff
         return true;
     }
 
-    /**
-     * @throws Exception
-     */
     protected function sleep(): self
     {
-        switch ($this->getType()) {
-            case self::TYPE_MICROSECONDS:
-                $microSeconds = self::getTimeoutMicroseconds($this->currentAttempts);
-                switch ($this->sapi) {
-                    case self::SAPI_SWOOLE:
-                        // Minimum execution delay in Swoole is 1ms.
-                        Coroutine::sleep(max($microSeconds / 1000000, 0.001));
-                        break;
-                    default:
-                        usleep($microSeconds);
-                        break;
-                }
-                break;
-            case self::TYPE_SECONDS:
-                $seconds = self::getTimeoutSeconds($this->currentAttempts);
-                switch ($this->sapi) {
-                    case self::SAPI_SWOOLE:
-                        // Minimum execution delay in Swoole is 1ms.
-                        Coroutine::sleep(max($seconds, 0.001));
-                        break;
-                    default:
-                        sleep($seconds);
-                        break;
-                }
-                break;
-            default:
-                throw new Exception("invalid backoff type '{$this->getType()}'");
+        $microSeconds = match ($this->getType()) {
+            Type::Microseconds => self::getTimeoutMicroseconds($this->currentAttempts),
+            Type::Seconds      => self::getTimeoutSeconds($this->currentAttempts) * 1000000,
+        };
+
+        if ($this->sapi === Sapi::Swoole) {
+            // Minimum execution delay in Swoole is 1ms.
+            Coroutine::sleep(max($microSeconds / 1000000, 0.001));
+        } else {
+            // ponytail: usleep() covers both units; PHP implements it via nanosleep(), so multi-second waits are fine.
+            usleep($microSeconds);
         }
 
         return $this->increaseCurrentAttempts();

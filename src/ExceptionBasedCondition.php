@@ -29,10 +29,8 @@ use Throwable;
  */
 class ExceptionBasedCondition extends AbstractRetryCondition
 {
-    /**
-     * @var string[]
-     */
-    protected $exceptions;
+    /** @var string[] */
+    protected array $exceptions = [];
 
     /**
      * ExceptionBasedCondition constructor.
@@ -48,7 +46,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     /**
      * {@inheritdoc}
      */
-    public function met($result, ?BaseException $e): bool
+    public function met(mixed $result, ?BaseException $e): bool
     {
         if (empty($e)) {
             return true;

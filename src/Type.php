@@ -19,19 +19,13 @@ declare(strict_types=1);
 
 namespace CrowdStar\Backoff;
 
-use Exception;
-
 /**
- * Class EmptyValueCondition
- * Do a retry if return value is empty.
+ * The unit used when calculating how long to wait before the next attempt.
+ *
+ * Values match the ExponentialBackoff::TYPE_* constants used before version 4.0.
  */
-class EmptyValueCondition extends AbstractRetryCondition
+enum Type: int
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function met(mixed $result, ?Exception $e): bool
-    {
-        return !empty($result);
-    }
+    case Microseconds = 1;
+    case Seconds      = 2;
 }
