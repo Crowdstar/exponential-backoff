@@ -206,7 +206,8 @@ class ExponentialBackoffTest extends TestCase
      */
     public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout): void
     {
-        $timeout = ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout);
+        // These data sets characterise the doubling curve, so they opt out of the maximum timeout.
+        $timeout = ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout, 3600);
         $message = sprintf(
             'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
             $iteration,
@@ -285,18 +286,18 @@ class ExponentialBackoffTest extends TestCase
 
         // Test data for simulating actual application timeouts.
         $data = [
-            [250000 * 1, (250000 * 1) + ((250000 * 1) / 10), 1, 250000],
-            [300000 * 2, (300000 * 2) + ((300000 * 2) / 10), 2, 300000],
-            [350000 * 4, (350000 * 4) + ((350000 * 4) / 10), 3, 350000],
-            [400000 * 8, (400000 * 8) + ((400000 * 8) / 10), 4, 400000],
-            [450000 * 16, (450000 * 16) + ((450000 * 16) / 10), 5, 450000],
+            [250_000 * 1, (250_000 * 1) + ((250_000 * 1) / 10), 1, 250_000],
+            [300_000 * 2, (300_000 * 2) + ((300_000 * 2) / 10), 2, 300_000],
+            [350_000 * 4, (350_000 * 4) + ((350_000 * 4) / 10), 3, 350_000],
+            [400_000 * 8, (400_000 * 8) + ((400_000 * 8) / 10), 4, 400_000],
+            [450_000 * 16, (450_000 * 16) + ((450_000 * 16) / 10), 5, 450_000],
 
             // Exactly same input data as above 5 ones, just to help to understand the timeouts better.
-            [250000,  275000, 1, 250000],
-            [600000,  660000, 2, 300000],
-            [1400000, 1540000, 3, 350000],
-            [3200000, 3520000, 4, 400000],
-            [7200000, 7920000, 5, 450000],
+            [250_000,  275_000, 1, 250_000],
+            [600_000,  660_000, 2, 300_000],
+            [1_400_000, 1_540_000, 3, 350_000],
+            [3_200_000, 3_520_000, 4, 400_000],
+            [7_200_000, 7_920_000, 5, 450_000],
         ];
 
         // Since we are testing methods with random output, repeat tests on same data for 20 (4 * 5) times.
@@ -304,5 +305,94 @@ class ExponentialBackoffTest extends TestCase
         $data = array_merge($data, $data, $data, $data, $data);
 
         return array_merge($simpleData, $data);
+    }
+
+    /**
+     * Timeouts stop doubling once they reach the maximum, and the randomness is added on top of the capped value.
+     *
+     * The iterations here used to overflow: from #46 on, the timeout no longer fit in an integer and the method threw
+     * a TypeError, while from #65 on the bit shift returned 0 and backoff switched itself off silently.
+     *
+     * @dataProvider dataMaxTimeout
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
+     */
+    public function testMaxTimeout(int $iteration): void
+    {
+        $timeout = ExponentialBackoff::getTimeoutMicroseconds($iteration, 250_000, 1_000_000);
+        $message = sprintf('For round #%d the timeout should be capped at 1 second plus randomness.', $iteration);
+
+        // Round #4 is the first one reaching the cap: 250_000 * 2 ** 3 == 2_000_000.
+        self::assertGreaterThanOrEqual(($iteration >= 4) ? 1_000_000 : 250_000, $timeout, $message);
+        self::assertLessThanOrEqual(1_100_000, $timeout, $message);
+    }
+
+    /**
+     * @return array<string, array{0: int}>
+     */
+    public static function dataMaxTimeout(): array
+    {
+        return [
+            'iteration below 1 is treated as the first one' => [0],
+            'first iteration, below the cap'                => [1],
+            'second iteration, below the cap'               => [2],
+            'fourth iteration, reaching the cap'            => [4],
+            'tenth iteration, capped'                       => [10],
+            'iteration 45, the last one that used to work'  => [45],
+            'iteration 46, used to throw a TypeError'       => [46],
+            'iteration 64, used to throw a TypeError'       => [64],
+            'iteration 65, used to return no timeout at all' => [65],
+            'iteration 200, way beyond the integer range'   => [200],
+        ];
+    }
+
+    /**
+     * The cap applies to the timeout before the randomness is added, so a capped timeout still varies by up to 10%.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
+     */
+    public function testMaxTimeoutInSeconds(): void
+    {
+        $timeouts = [ExponentialBackoff::getTimeoutSeconds(200, 1, 30), ExponentialBackoff::getTimeoutSeconds(200)];
+
+        foreach ($timeouts as $timeout) {
+            self::assertGreaterThanOrEqual(30, $timeout, 'the timeout grew all the way to the cap');
+            self::assertLessThanOrEqual(33, $timeout, 'the timeout stayed within the cap plus 10% of randomness');
+        }
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setMaxTimeout
+     */
+    public function testSetMaxTimeout(): void
+    {
+        $backoff = new ExponentialBackoff(new EmptyValueCondition());
+
+        self::assertSame(ExponentialBackoff::DEFAULT_MAX_TIMEOUT, $backoff->getMaxTimeout());
+        self::assertSame(500, $backoff->setMaxTimeout(500)->getMaxTimeout());
+
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage('maximum timeout must be at least 1 microsecond');
+        $backoff->setMaxTimeout(0);
+    }
+
+    /**
+     * A run with many attempts used to sleep for days, or to crash. It now takes about as long as the cap allows.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run
+     */
+    public function testManyAttemptsStayWithinTheCap(): void
+    {
+        $helper  = (new Helper())->setExpectedFailedAttempts(3);
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition()))
+            ->setMaxAttempts(70)
+            ->setMaxTimeout(1000)
+        ;
+
+        $start = microtime(true);
+        self::assertSame(
+            $helper->getValue(),
+            $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...))
+        );
+        self::assertLessThanOrEqual(0.2, microtime(true) - $start, 'three sleeps of at most 1.1ms each');
     }
 }

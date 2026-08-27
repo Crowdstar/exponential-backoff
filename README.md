@@ -176,7 +176,9 @@ $backoff
     ->setType(Type::Seconds)
     ->setType(Type::Microseconds)
     ->setMaxAttempts(3)
-    ->setMaxAttempts(4);
+    ->setMaxAttempts(4)
+    ->setMaxTimeout(5_000_000)  // Wait at most 5 seconds between two attempts.
+    ->setMaxTimeout(\CrowdStar\Backoff\ExponentialBackoff::DEFAULT_MAX_TIMEOUT);
 
 $result = $backoff->run(
     function () {

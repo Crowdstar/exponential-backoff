@@ -17,6 +17,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * Method _AbstractRetryCondition::met()_ now declares its first parameter as `mixed`. Existing subclasses that leave the
   parameter untyped keep working.
 * Class properties now use native types, and _ExponentialBackoff::$sapi_ is `readonly`.
+* **BREAKING** A single timeout is now capped at 30 seconds by default, configurable with
+  _ExponentialBackoff::setMaxTimeout()_. Timeouts double until they reach the cap and stay there, where before they
+  doubled without limit. With the default of 4 attempts the longest timeout is 1 second, so the default behavior is
+  unchanged; runs configured with more attempts than that now wait considerably less.
+* **BREAKING** Methods _ExponentialBackoff::getTimeoutMicroseconds()_ and _::getTimeoutSeconds()_ take a maximum
+  timeout as their third parameter. Pass one explicitly to opt out of the default cap.
 
 ### Added
 
@@ -24,6 +30,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   _ExponentialBackoff::TYPE_SECONDS_.
 * Enum _CrowdStar\Backoff\Sapi_, replacing the protected constants _ExponentialBackoff::SAPI_DEFAULT_ and
   _ExponentialBackoff::SAPI_SWOOLE_. Unlike those, it can be used by callers to force blocking or non-blocking mode.
+* Methods _ExponentialBackoff::setMaxTimeout()_ and _::getMaxTimeout()_, plus constants
+  _ExponentialBackoff::DEFAULT_MAX_TIMEOUT_ and _::DEFAULT_INITIAL_TIMEOUT_.
+
+### Fixed
+
+* Timeouts no longer overflow. Doubling an uncapped timeout left the integer range from the 46th attempt on, where
+  _ExponentialBackoff::getTimeoutMicroseconds()_ threw a _TypeError_, and from the 65th attempt on the bit shift it
+  used returned 0, silently disabling the backoff altogether. Both were reachable through _::setMaxAttempts()_, and
+  neither could be caught by _::run()_, which handles exceptions rather than errors. Timeouts now stop at the maximum
+  instead of growing past what an integer holds, and a non-positive iteration is treated as the first one rather than
+  raising an _ArithmeticError_.
 
 ### Removed
 
