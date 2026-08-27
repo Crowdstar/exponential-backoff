@@ -43,7 +43,15 @@ class ExponentialBackoff
      */
     public const DEFAULT_MAX_TIMEOUT = 30_000_000;
 
+    /**
+     * How much randomness to mix into a timeout. Waiting anywhere between nothing and the full timeout spreads
+     * clients out best; see CrowdStar\Backoff\Jitter for the alternatives.
+     */
+    public const DEFAULT_JITTER = Jitter::Full;
+
     protected Type $type = Type::Microseconds;
+
+    protected Jitter $jitter = self::DEFAULT_JITTER;
 
     protected readonly Sapi $sapi;
 
@@ -135,6 +143,18 @@ class ExponentialBackoff
         return $this;
     }
 
+    public function getJitter(): Jitter
+    {
+        return $this->jitter;
+    }
+
+    public function setJitter(Jitter $jitter): self
+    {
+        $this->jitter = $jitter;
+
+        return $this;
+    }
+
     public function getMaxTimeout(): int
     {
         return $this->maxTimeout;
@@ -173,15 +193,23 @@ class ExponentialBackoff
     /**
      * Get the next timeout in seconds.
      *
+     * Randomness is applied to microseconds and only then rounded down, so anything below one second is lost. Use
+     * self::getTimeoutMicroseconds() where that matters.
+     *
      * @param ?int $maxTimeout the maximum timeout in seconds; self::DEFAULT_MAX_TIMEOUT when NULL.
      */
-    public static function getTimeoutSeconds(int $iteration, int $initialTimeout = 1, ?int $maxTimeout = null): int
-    {
+    public static function getTimeoutSeconds(
+        int $iteration,
+        int $initialTimeout = 1,
+        ?int $maxTimeout = null,
+        Jitter $jitter = self::DEFAULT_JITTER
+    ): int {
         return (int) (
             self::getTimeoutMicroseconds(
                 $iteration,
                 self::toMicroseconds($initialTimeout),
-                ($maxTimeout === null) ? self::DEFAULT_MAX_TIMEOUT : self::toMicroseconds($maxTimeout)
+                ($maxTimeout === null) ? self::DEFAULT_MAX_TIMEOUT : self::toMicroseconds($maxTimeout),
+                $jitter
             ) / 1_000_000
         );
     }
@@ -190,14 +218,16 @@ class ExponentialBackoff
      * Get the next timeout in microseconds.
      *
      * The timeout doubles on every iteration until it reaches $maxTimeout, where it stays. Iterations below 1 are
-     * treated as the first one.
+     * treated as the first one. Randomness is applied to the capped timeout, so a Jitter::None timeout never exceeds
+     * $maxTimeout while a Jitter::Equal one may exceed it by nothing at all and a Jitter::Full one stays below it.
      */
     public static function getTimeoutMicroseconds(
         int $iteration,
         int $initialTimeout = self::DEFAULT_INITIAL_TIMEOUT,
-        int $maxTimeout = self::DEFAULT_MAX_TIMEOUT
+        int $maxTimeout = self::DEFAULT_MAX_TIMEOUT,
+        Jitter $jitter = self::DEFAULT_JITTER
     ): int {
-        // Leave room for the randomness added below, so that no input can make the arithmetic overflow to a float.
+        // Leave room for the arithmetic below, so that no input can make it overflow to a float.
         $maxTimeout = min(max(0, $maxTimeout), intdiv(PHP_INT_MAX, 2));
         $timeout    = min(max(0, $initialTimeout), $maxTimeout);
 
@@ -212,9 +242,15 @@ class ExponentialBackoff
             $timeout *= 2;
         }
 
-        // We throw in some randomness here to try to prevent connections from colliding. The cap is applied before
-        // the randomness, the way https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ does it.
-        return $timeout + random_int(0, intdiv($timeout, 10));
+        // We throw in some randomness here to try to prevent connections from colliding. It is applied to the capped
+        // timeout, the way https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ does it: capping
+        // afterwards would make every timeout past the cap exactly equal, putting the clients it spread out back in
+        // step with each other.
+        return match ($jitter) {
+            Jitter::None  => $timeout,
+            Jitter::Full  => random_int(0, $timeout),
+            Jitter::Equal => intdiv($timeout, 2) + random_int(0, $timeout - intdiv($timeout, 2)),
+        };
     }
 
     /**
@@ -249,18 +285,19 @@ class ExponentialBackoff
 
     protected function sleep(): self
     {
-        $microSeconds = match ($this->getType()) {
-            Type::Microseconds => self::getTimeoutMicroseconds(
-                $this->currentAttempts,
-                self::DEFAULT_INITIAL_TIMEOUT,
-                $this->maxTimeout
-            ),
-            Type::Seconds => self::getTimeoutSeconds(
-                $this->currentAttempts,
-                1,
-                max(1, intdiv($this->maxTimeout, 1_000_000))
-            ) * 1_000_000,
+        // Both types are computed in microseconds. Going through self::getTimeoutSeconds() for Type::Seconds would
+        // round the randomness down to whole seconds, which for a one-second timeout rounds nearly all of it away.
+        $initialTimeout = match ($this->getType()) {
+            Type::Microseconds => self::DEFAULT_INITIAL_TIMEOUT,
+            Type::Seconds      => 1_000_000,
         };
+
+        $microSeconds = self::getTimeoutMicroseconds(
+            $this->currentAttempts,
+            $initialTimeout,
+            $this->maxTimeout,
+            $this->getJitter()
+        );
 
         if ($this->sapi === Sapi::Swoole) {
             // Minimum execution delay in Swoole is 1ms.

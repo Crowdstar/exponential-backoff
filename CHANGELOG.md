@@ -22,7 +22,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   doubled without limit. With the default of 4 attempts the longest timeout is 1 second, so the default behavior is
   unchanged; runs configured with more attempts than that now wait considerably less.
 * **BREAKING** Methods _ExponentialBackoff::getTimeoutMicroseconds()_ and _::getTimeoutSeconds()_ take a maximum
-  timeout as their third parameter. Pass one explicitly to opt out of the default cap.
+  timeout as their third parameter and a _CrowdStar\Backoff\Jitter_ case as their fourth. Pass them explicitly to opt
+  out of the default cap and of the default randomness.
+* **BREAKING** A timeout is now randomized over its whole length instead of being lengthened by up to 10%, and the
+  amount of randomness is configurable with _ExponentialBackoff::setJitter()_. Waits are therefore shorter on average
+  and no longer predictable: a timeout has become the longest a wait may take rather than the shortest. Clients that
+  failed together are what this spreads out; the measurements behind it are in the AWS article linked from enum
+  _CrowdStar\Backoff\Jitter_. Pass _Jitter::None_ for the previous predictability, or _Jitter::Equal_ to keep at least
+  half of every timeout.
+* In _Type::Seconds_ mode the randomness is no longer rounded away. Timeouts are calculated in microseconds for both
+  types, where before seconds-mode timeouts were rounded down to whole seconds after being randomized — which for a
+  one-second timeout discarded the randomness entirely, leaving every client to retry in lockstep. Method
+  _::getTimeoutSeconds()_ still rounds, and is no longer used internally.
 
 ### Added
 
@@ -32,6 +43,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   _ExponentialBackoff::SAPI_SWOOLE_. Unlike those, it can be used by callers to force blocking or non-blocking mode.
 * Methods _ExponentialBackoff::setMaxTimeout()_ and _::getMaxTimeout()_, plus constants
   _ExponentialBackoff::DEFAULT_MAX_TIMEOUT_ and _::DEFAULT_INITIAL_TIMEOUT_.
+* Enum _CrowdStar\Backoff\Jitter_ with cases _None_, _Full_ and _Equal_, along with methods
+  _ExponentialBackoff::setJitter()_ and _::getJitter()_ and constant _ExponentialBackoff::DEFAULT_JITTER_.
 
 ### Fixed
 

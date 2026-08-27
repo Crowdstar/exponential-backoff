@@ -26,6 +26,7 @@ use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Jitter;
 use CrowdStar\Backoff\Type;
 use CrowdStar\Tests\Backoff\Helper;
 
@@ -53,6 +54,11 @@ $backoff
     ->setType(Type::Microseconds)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
+    ->setMaxTimeout(5_000_000)
+    ->setMaxTimeout(ExponentialBackoff::DEFAULT_MAX_TIMEOUT)
+    ->setJitter(Jitter::None)
+    ->setJitter(Jitter::Equal)
+    ->setJitter(Jitter::Full)
 ;
 
 /** @var string $result */

@@ -22,6 +22,7 @@ namespace CrowdStar\Tests\Backoff;
 use Closure;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Jitter;
 use CrowdStar\Backoff\NullCondition;
 use CrowdStar\Backoff\Sapi;
 use CrowdStar\Reflection\Reflection;
@@ -82,7 +83,7 @@ class SwooleTest extends TestCase
 
     /**
      * Two backoffs waiting inside their own coroutines should overlap instead of queueing up, taking about as long as
-     * a single one. Each does one retry, so each waits for one initial timeout of 0.25 second plus up to 10% jitter.
+     * a single one. Each does one retry, so each waits for one initial timeout of 0.25 second.
      *
      * Swoole's runtime hooks make even a blocking usleep() yield to other coroutines. The hooks are switched off here
      * so that Coroutine::sleep() is the only thing that can make the two waits overlap, which is what makes the upper
@@ -145,7 +146,10 @@ class SwooleTest extends TestCase
     {
         $helper = (new Helper())->setExpectedFailedAttempts(1);
 
+        // Randomness is switched off so that the wait lasts a known 0.25 second: the test around this measures how
+        // two of those waits overlap, which needs both of them to actually happen.
         return (new ExponentialBackoff(new EmptyValueCondition()))
+            ->setJitter(Jitter::None)
             ->setMaxAttempts(2)
             ->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...))
         ;

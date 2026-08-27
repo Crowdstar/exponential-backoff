@@ -24,6 +24,7 @@ use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Jitter;
 use CrowdStar\Backoff\Type;
 use Deminy\Counit\TestCase;
 use Exception;
@@ -141,27 +142,31 @@ class ExponentialBackoffTest extends TestCase
     {
         // We add 0.2 seconds to the total execution time in each test, assuming that the rest part of the test won't
         // take more than 0.2 seconds to finish.
+        //
+        // Randomness is switched off throughout: these data sets are about the waits actually happening and lasting
+        // as long as they were calculated to, which needs a timeout known upfront. See self::testJitteredDelays() for
+        // a run with randomness left on.
         return [
             [
-                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
+                (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None)->setMaxAttempts(1),
                 0.00,
                 0.20,
                 'It takes no time to do exponential backoff with maximum # of attempts "1".',
             ],
             [
-                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(2),
+                (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None)->setMaxAttempts(2),
                 0.25,
                 0.40,
                 'It takes barely over 0.25 second to do exponential backoff with maximum # of attempts "2".',
             ],
             [
-                (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(3),
+                (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None)->setMaxAttempts(3),
                 0.75,
                 0.95,
                 'It takes barely over 0.75 second to do exponential backoff with maximum # of attempts "3".',
             ],
             [
-                new ExponentialBackoff(new EmptyValueCondition()),
+                (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None),
                 1.75,
                 1.95,
                 'It takes barely over 1.75 seconds to do exponential backoff with a default maximum # of attempts "4".',
@@ -169,6 +174,7 @@ class ExponentialBackoffTest extends TestCase
 
             [
                 (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setJitter(Jitter::None)
                     ->setType(Type::Seconds)
                     ->setMaxAttempts(1),
                 0.0,
@@ -177,6 +183,7 @@ class ExponentialBackoffTest extends TestCase
             ],
             [
                 (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setJitter(Jitter::None)
                     ->setType(Type::Seconds)
                     ->setMaxAttempts(2),
                 1.0,
@@ -185,6 +192,7 @@ class ExponentialBackoffTest extends TestCase
             ],
             [
                 (new ExponentialBackoff(new EmptyValueCondition()))
+                    ->setJitter(Jitter::None)
                     ->setType(Type::Seconds)
                     ->setMaxAttempts(3),
                 3.0,
@@ -192,7 +200,7 @@ class ExponentialBackoffTest extends TestCase
                 'It takes barely over 3 seconds to do exponential backoff with maximum # of attempts "3".',
             ],
             [
-                (new ExponentialBackoff(new EmptyValueCondition()))->setType(Type::Seconds),
+                (new ExponentialBackoff(new EmptyValueCondition()))->setJitter(Jitter::None)->setType(Type::Seconds),
                 7.0,
                 7.2,
                 'It takes barely over 7 seconds to do exponential backoff with a default maximum # of attempts "4".',
@@ -204,20 +212,15 @@ class ExponentialBackoffTest extends TestCase
      * @dataProvider dataGetTimeoutSeconds
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
      */
-    public function testGetTimeoutSeconds(int $expectedMin, int $expectedMax, int $iteration, int $initialTimeout): void
+    public function testGetTimeoutSeconds(int $expected, int $iteration, int $initialTimeout): void
     {
-        // These data sets characterise the doubling curve, so they opt out of the maximum timeout.
-        $timeout = ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout, 3600);
-        $message = sprintf(
-            'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
-            $iteration,
-            $initialTimeout,
-            $expectedMin,
-            $expectedMax
+        // These data sets characterise the doubling curve itself, so they opt out of both the maximum timeout and
+        // the randomness. See self::testJitter() for what the randomness does to these timeouts.
+        self::assertSame(
+            $expected,
+            ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout, 3600, Jitter::None),
+            sprintf('For round #%d with initial timeout %d.', $iteration, $initialTimeout)
         );
-
-        self::assertGreaterThanOrEqual($expectedMin, $timeout, $message);
-        self::assertLessThanOrEqual($expectedMax, $timeout, $message);
     }
 
     /**
@@ -226,16 +229,16 @@ class ExponentialBackoffTest extends TestCase
     public static function dataGetTimeoutSeconds(): array
     {
         // Test data to help to understand how timeouts are calculated, with input data in following order:
-        //     ($expectedMin, $expectedMax, $iteration, $initialTimeout)
+        //     ($expected, $iteration, $initialTimeout)
         $data = [
-            [50 * 1, (50 * 1) + ((50 * 1) / 10), 1, 50],
-            [60 * 2, (60 * 2) + ((60 * 2) / 10), 2, 60],
-            [70 * 4, (70 * 4) + ((70 * 4) / 10), 3, 70],
+            [50 * 1, 1, 50],
+            [60 * 2, 2, 60],
+            [70 * 4, 3, 70],
 
             // Exactly same input data as above 3 ones, just to help to understand the timeouts better.
-            [50,  55, 1, 50],
-            [120, 132, 2, 60],
-            [280, 308, 3, 70],
+            [50, 1, 50],
+            [120, 2, 60],
+            [280, 3, 70],
         ];
 
         // Since we are testing methods with random output, repeat tests on same data for 20 (4 * 5) times.
@@ -247,23 +250,14 @@ class ExponentialBackoffTest extends TestCase
      * @dataProvider dataGetTimeoutMicroseconds
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
      */
-    public function testGetTimeoutMicroseconds(
-        int $expectedMin,
-        int $expectedMax,
-        int $iteration,
-        int $initialTimeout
-    ): void {
-        $timeout = ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout);
-        $message = sprintf(
-            'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
-            $iteration,
-            $initialTimeout,
-            $expectedMin,
-            $expectedMax
+    public function testGetTimeoutMicroseconds(int $expected, int $iteration, int $initialTimeout): void
+    {
+        // As with self::testGetTimeoutSeconds(), these data sets are about the doubling curve, not the randomness.
+        self::assertSame(
+            $expected,
+            ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout, jitter: Jitter::None),
+            sprintf('For round #%d with initial timeout %d.', $iteration, $initialTimeout)
         );
-
-        self::assertGreaterThanOrEqual($expectedMin, $timeout, $message);
-        self::assertLessThanOrEqual($expectedMax, $timeout, $message);
     }
 
     /**
@@ -272,32 +266,32 @@ class ExponentialBackoffTest extends TestCase
     public static function dataGetTimeoutMicroseconds(): array
     {
         // Test data to help to understand how timeouts are calculated, with input data in following order:
-        //     ($expectedMin, $expectedMax, $iteration, $initialTimeout)
+        //     ($expected, $iteration, $initialTimeout)
         $simpleData = [
-            [50 * 1, (50 * 1) + ((50 * 1) / 10), 1, 50],
-            [60 * 2, (60 * 2) + ((60 * 2) / 10), 2, 60],
-            [70 * 4, (70 * 4) + ((70 * 4) / 10), 3, 70],
+            [50 * 1, 1, 50],
+            [60 * 2, 2, 60],
+            [70 * 4, 3, 70],
 
             // Exactly same input data as above 3 ones, just to help to understand the timeouts better.
-            [50,  55, 1, 50],
-            [120, 132, 2, 60],
-            [280, 308, 3, 70],
+            [50, 1, 50],
+            [120, 2, 60],
+            [280, 3, 70],
         ];
 
         // Test data for simulating actual application timeouts.
         $data = [
-            [250_000 * 1, (250_000 * 1) + ((250_000 * 1) / 10), 1, 250_000],
-            [300_000 * 2, (300_000 * 2) + ((300_000 * 2) / 10), 2, 300_000],
-            [350_000 * 4, (350_000 * 4) + ((350_000 * 4) / 10), 3, 350_000],
-            [400_000 * 8, (400_000 * 8) + ((400_000 * 8) / 10), 4, 400_000],
-            [450_000 * 16, (450_000 * 16) + ((450_000 * 16) / 10), 5, 450_000],
+            [250_000 * 1, 1, 250_000],
+            [300_000 * 2, 2, 300_000],
+            [350_000 * 4, 3, 350_000],
+            [400_000 * 8, 4, 400_000],
+            [450_000 * 16, 5, 450_000],
 
             // Exactly same input data as above 5 ones, just to help to understand the timeouts better.
-            [250_000,  275_000, 1, 250_000],
-            [600_000,  660_000, 2, 300_000],
-            [1_400_000, 1_540_000, 3, 350_000],
-            [3_200_000, 3_520_000, 4, 400_000],
-            [7_200_000, 7_920_000, 5, 450_000],
+            [250_000, 1, 250_000],
+            [600_000, 2, 300_000],
+            [1_400_000, 3, 350_000],
+            [3_200_000, 4, 400_000],
+            [7_200_000, 5, 450_000],
         ];
 
         // Since we are testing methods with random output, repeat tests on same data for 20 (4 * 5) times.
@@ -318,12 +312,12 @@ class ExponentialBackoffTest extends TestCase
      */
     public function testMaxTimeout(int $iteration): void
     {
-        $timeout = ExponentialBackoff::getTimeoutMicroseconds($iteration, 250_000, 1_000_000);
-        $message = sprintf('For round #%d the timeout should be capped at 1 second plus randomness.', $iteration);
-
         // Round #4 is the first one reaching the cap: 250_000 * 2 ** 3 == 2_000_000.
-        self::assertGreaterThanOrEqual(($iteration >= 4) ? 1_000_000 : 250_000, $timeout, $message);
-        self::assertLessThanOrEqual(1_100_000, $timeout, $message);
+        self::assertSame(
+            ($iteration >= 4) ? 1_000_000 : 250_000 * (2 ** max(0, $iteration - 1)),
+            ExponentialBackoff::getTimeoutMicroseconds($iteration, 250_000, 1_000_000, Jitter::None),
+            sprintf('For round #%d the timeout should be capped at 1 second.', $iteration)
+        );
     }
 
     /**
@@ -346,18 +340,16 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
-     * The cap applies to the timeout before the randomness is added, so a capped timeout still varies by up to 10%.
-     *
      * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
      */
     public function testMaxTimeoutInSeconds(): void
     {
-        $timeouts = [ExponentialBackoff::getTimeoutSeconds(200, 1, 30), ExponentialBackoff::getTimeoutSeconds(200)];
-
-        foreach ($timeouts as $timeout) {
-            self::assertGreaterThanOrEqual(30, $timeout, 'the timeout grew all the way to the cap');
-            self::assertLessThanOrEqual(33, $timeout, 'the timeout stayed within the cap plus 10% of randomness');
-        }
+        self::assertSame(30, ExponentialBackoff::getTimeoutSeconds(200, 1, 30, Jitter::None), 'the given cap applies');
+        self::assertSame(
+            30,
+            ExponentialBackoff::getTimeoutSeconds(200, 1, null, Jitter::None),
+            'the default maximum timeout of 30 seconds applies when none is given'
+        );
     }
 
     /**
@@ -393,6 +385,61 @@ class ExponentialBackoffTest extends TestCase
             $helper->getValue(),
             $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...))
         );
-        self::assertLessThanOrEqual(0.2, microtime(true) - $start, 'three sleeps of at most 1.1ms each');
+        self::assertLessThanOrEqual(0.2, microtime(true) - $start, 'three sleeps of at most 1ms each');
+    }
+
+    /**
+     * Every mode stays inside its own range, and both randomized ones do vary. 200 draws make it all but impossible
+     * for a working implementation to return the same value every time, or to stay inside a narrower band by chance.
+     *
+     * @dataProvider dataJitter
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
+     */
+    public function testJitter(Jitter $jitter, int $expectedMin, int $expectedMax): void
+    {
+        $timeouts = [];
+        for ($i = 0; $i < 200; $i++) {
+            $timeouts[] = ExponentialBackoff::getTimeoutMicroseconds(3, 250_000, jitter: $jitter);
+        }
+
+        // Round #3 of a 250ms initial timeout is one second, well below the default maximum.
+        self::assertGreaterThanOrEqual($expectedMin, min($timeouts), 'no timeout fell below the range');
+        self::assertLessThanOrEqual($expectedMax, max($timeouts), 'no timeout went above the range');
+        self::assertCount(
+            ($jitter === Jitter::None) ? 1 : 200,
+            array_unique($timeouts),
+            ($jitter === Jitter::None) ? 'every timeout is the same' : 'the timeouts differ from one another'
+        );
+    }
+
+    /**
+     * @return array<string, array{0: Jitter, 1: int, 2: int}>
+     */
+    public static function dataJitter(): array
+    {
+        return [
+            'no randomness: exactly the timeout'          => [Jitter::None, 1_000_000, 1_000_000],
+            'full randomness: anywhere up to the timeout' => [Jitter::Full, 0, 1_000_000],
+            'equal randomness: at least half of it'       => [Jitter::Equal, 500_000, 1_000_000],
+        ];
+    }
+
+    /**
+     * With randomness left on, a run waits for at most what the timeouts add up to, and generally for less.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::run
+     */
+    public function testJitteredDelays(): void
+    {
+        $helper  = new Helper();
+        $backoff = new ExponentialBackoff(new EmptyValueCondition());
+
+        self::assertSame(Jitter::Full, $backoff->getJitter(), 'full randomness is the default');
+
+        $start = microtime(true);
+        $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
+
+        // Three sleeps of at most 0.25s, 0.5s and 1s. Without randomness this run would take 1.75s every time.
+        self::assertLessThanOrEqual(1.95, microtime(true) - $start);
     }
 }
