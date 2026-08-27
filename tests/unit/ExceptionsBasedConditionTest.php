@@ -64,11 +64,7 @@ class ExceptionsBasedConditionTest extends TestCase
             self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
             self::assertSame(
                 $helper->getValue(),
-                $backoff->run(
-                    function () use ($helper) {
-                        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-                    }
-                ),
+                $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...)),
                 $message
             );
             self::assertSame(
@@ -82,7 +78,7 @@ class ExceptionsBasedConditionTest extends TestCase
     /**
      * @return array<array{0: array<string>, 1: array<string>, 2: string}>
      */
-    public function dataSuccessfulRetries(): array
+    public static function dataSuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
         // Exception > LogicException > BadFunctionCallException > BadMethodCallException
@@ -207,11 +203,7 @@ class ExceptionsBasedConditionTest extends TestCase
             ->setExpectedFailedAttempts($expectedFailedAttempts)
         ;
         try {
-            $backoff->run(
-                function () use ($helper) {
-                    return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-                }
-            );
+            $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...));
         } catch (Throwable $t) {
             // Nothing to do here. Exceptions will be evaluated in the "finally" block.
         } finally {
@@ -230,62 +222,56 @@ class ExceptionsBasedConditionTest extends TestCase
     }
 
     /**
-     * @return array<array{0: int, 1: int, 2: array<string>, 3: array<string>}>
+     * @return array<string, array{0: int, 1: int, 2: array<string>, 3: array<string>}>
      */
-    public function dataUnsuccessfulRetries(): array
+    public static function dataUnsuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
         // Exception > LogicException > BadFunctionCallException > BadMethodCallException
         // Exception > LogicException > OutOfRangeException
         // Exception > RuntimeException
         return [
-            [
+            'will fail 1 time  before getting a value back, but maximally only 1 time  allowed' => [
                 // NOTE: The exception to catch is an interface.
                 1, // $expectedFailedAttempts
                 1, // $maxAttempts
                 [Throwable::class], // $exceptionsToCatch
                 [Exception::class, OutOfRangeException::class], // $exceptionsToThrow
-                'will fail 1 time  before getting a value back, but maximally only 1 time  allowed',
             ],
-            [
+            'will fail 2 times before getting a value back, but maximally only 1 time  allowed' => [
                 // NOTE: The exception to catch is the one thrown out, or a parent exception of the one thrown out.
                 2, // $expectedFailedAttempts
                 1, // $maxAttempts
                 [Exception::class], // $exceptionsToCatch
                 [Exception::class, RuntimeException::class], // $exceptionsToThrow
-                'will fail 2 times before getting a value back, but maximally only 1 time  allowed',
             ],
-            [
+            'will fail 2 times before getting a value back, but maximally only 2 times allowed' => [
                 // NOTE: The exception to catch is a parent exception.
                 2, // $expectedFailedAttempts
                 2, // $maxAttempts
                 [LogicException::class], // $exceptionsToCatch
                 [BadMethodCallException::class, OutOfRangeException::class], // $exceptionsToThrow
-                'will fail 2 times before getting a value back, but maximally only 2 times allowed',
             ],
-            [
+            'will fail 3 times before getting a value back, but maximally only 1 time  allowed' => [
                 // NOTE: The exceptions to catch are more than what is thrown out.
                 3, // $expectedFailedAttempts
                 1, // $maxAttempts
                 [LogicException::class, BadMethodCallException::class, RuntimeException::class], // $exceptionsToCatch
                 [OutOfRangeException::class], // $exceptionsToThrow
-                'will fail 3 times before getting a value back, but maximally only 1 time  allowed',
             ],
-            [
+            'will fail 3 times before getting a value back, but maximally only 2 times allowed' => [
                 // NOTE: The exceptions to catch are more than what to throw out.
                 3, // $expectedFailedAttempts
                 2, // $maxAttempts
                 [LogicException::class, BadMethodCallException::class, RuntimeException::class], // $exceptionsToCatch
                 [RuntimeException::class, BadFunctionCallException::class], // $exceptionsToThrow
-                'will fail 3 times before getting a value back, but maximally only 2 times allowed',
             ],
-            [
+            'will fail 3 times before getting a value back, but maximally only 3 times allowed' => [
                 // NOTE: The exceptions to catch are of the same as those to throw out (although ordered differently).
                 3, // $expectedFailedAttempts
                 3, // $maxAttempts
                 [LogicException::class, BadMethodCallException::class, RuntimeException::class], // $exceptionsToCatch
                 [RuntimeException::class, BadMethodCallException::class, LogicException::class], // $exceptionsToThrow
-                'will fail 3 times before getting a value back, but maximally only 3 times allowed',
             ],
         ];
     }
@@ -302,7 +288,7 @@ class ExceptionsBasedConditionTest extends TestCase
     /**
      * @return array<array<string>>
      */
-    public function dataSetExceptions(): array
+    public static function dataSetExceptions(): array
     {
         return [
             // Single type of throwable objects.
@@ -349,7 +335,7 @@ class ExceptionsBasedConditionTest extends TestCase
     /**
      * @return array<array{0: string, 1: array<string>}>
      */
-    public function dataSetExceptionsWithExceptions(): array
+    public static function dataSetExceptionsWithExceptions(): array
     {
         return [
             // Single type of throwable objects.

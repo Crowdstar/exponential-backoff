@@ -32,26 +32,20 @@ class Helper
 
     /**
      * Expected numbers of failed attempts before the value could be fetched.
-     * @var int
      */
-    protected $expectedFailedAttempts = 3;
+    protected int $expectedFailedAttempts = 3;
 
-    /**
-     * @var int
-     */
-    protected $currentAttempts = 1;
+    protected int $currentAttempts = 1;
 
     /**
      * @var string[]
      */
-    protected $exceptions;
+    protected array $exceptions = [];
 
     /**
      * A pointer pointing to the exception to be thrown out from array $this->exceptions.
-     *
-     * @var int
      */
-    protected $idxException = 0;
+    protected int $idxException = 0;
 
     /**
      * To return an empty string back when not yet reached expected # of failed attempts, otherwise return the value.

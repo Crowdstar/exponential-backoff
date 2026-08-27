@@ -60,11 +60,7 @@ class ExceptionBasedConditionTest extends TestCase
             self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
             self::assertSame(
                 $helper->getValue(),
-                $backoff->run(
-                    function () use ($helper) {
-                        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-                    }
-                ),
+                $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...)),
                 $message
             );
             self::assertSame(
@@ -78,7 +74,7 @@ class ExceptionBasedConditionTest extends TestCase
     /**
      * @return array<array<string>>
      */
-    public function dataSuccessfulRetries(): array
+    public static function dataSuccessfulRetries(): array
     {
         // @see http://php.net/manual/en/spl.exceptions.php SPL exceptions
         // Exception > LogicException > BadFunctionCallException > BadMethodCallException
@@ -158,11 +154,7 @@ class ExceptionBasedConditionTest extends TestCase
 
         $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts($expectedFailedAttempts);
         try {
-            $backoff->run(
-                function () use ($helper) {
-                    return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-                }
-            );
+            $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...));
         } catch (Exception $e) {
             // Nothing to do here. Exceptions will be evaluated in the "finally" block.
         } finally {
@@ -177,17 +169,17 @@ class ExceptionBasedConditionTest extends TestCase
     }
 
     /**
-     * @return array<array{0: int, 1: int, 2: string}>
+     * @return array<string, array{0: int, 1: int}>
      */
-    public function dataUnsuccessfulRetries(): array
+    public static function dataUnsuccessfulRetries(): array
     {
         return [
-            [1, 1, 'will fail 1 time  before getting a value back, but maximally only 1 time  allowed'],
-            [2, 1, 'will fail 2 times before getting a value back, but maximally only 1 time  allowed'],
-            [2, 2, 'will fail 2 times before getting a value back, but maximally only 2 times allowed'],
-            [3, 1, 'will fail 3 times before getting a value back, but maximally only 1 time  allowed'],
-            [3, 2, 'will fail 3 times before getting a value back, but maximally only 2 times allowed'],
-            [3, 3, 'will fail 3 times before getting a value back, but maximally only 3 times allowed'],
+            'will fail 1 time  before getting a value back, but maximally only 1 time  allowed'  => [1, 1],
+            'will fail 2 times before getting a value back, but maximally only 1 time  allowed'  => [2, 1],
+            'will fail 2 times before getting a value back, but maximally only 2 times allowed'  => [2, 2],
+            'will fail 3 times before getting a value back, but maximally only 1 time  allowed'  => [3, 1],
+            'will fail 3 times before getting a value back, but maximally only 2 times allowed'  => [3, 2],
+            'will fail 3 times before getting a value back, but maximally only 3 times allowed'  => [3, 3],
         ];
     }
 
@@ -203,7 +195,7 @@ class ExceptionBasedConditionTest extends TestCase
     /**
      * @return array<array<string>>
      */
-    public function dataSetException(): array
+    public static function dataSetException(): array
     {
         return [
             [
@@ -242,7 +234,7 @@ class ExceptionBasedConditionTest extends TestCase
     /**
      * @return array<array<string>>
      */
-    public function dataSetExceptionWithExceptions(): array
+    public static function dataSetExceptionWithExceptions(): array
     {
         return [
             [

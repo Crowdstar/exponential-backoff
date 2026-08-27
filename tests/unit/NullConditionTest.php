@@ -61,61 +61,49 @@ class NullConditionTest extends TestCase
     /**
      * @return array<array{0: int, 1: int, 2: ExponentialBackoff, 3: Closure, 4: string}>
      */
-    public function dataSuccessfulRetries(): array
+    public static function dataSuccessfulRetries(): array
     {
         return [
             [
                 0,
                 4,
                 new ExponentialBackoff(new NullCondition()),
-                function () {
-                    return 0;
-                },
+                fn () => 0,
                 'an empty value returned when exponential backoff disabled with a null condition.',
             ],
             [
                 1,
                 4,
                 new ExponentialBackoff(new NullCondition()),
-                function () {
-                    return 1;
-                },
+                fn () => 1,
                 'a non-empty value returned when exponential backoff disabled with a null condition.',
             ],
             [
                 0,
                 1,
                 (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
-                function () {
-                    return 0;
-                },
+                fn () => 0,
                 'an empty value returned when exponential backoff disabled by setting maximum # of attempts to 1.',
             ],
             [
                 1,
                 1,
                 (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
-                function () {
-                    return 1;
-                },
+                fn () => 1,
                 'a non-empty value returned when exponential backoff disabled by setting maximum # of attempts to 1.',
             ],
             [
                 0,
                 1,
                 (new ExponentialBackoff(new EmptyValueCondition()))->disable(),
-                function () {
-                    return 0;
-                },
+                fn () => 0,
                 'an empty value returned when exponential backoff disabled by calling method disable().',
             ],
             [
                 1,
                 1,
                 (new ExponentialBackoff(new EmptyValueCondition()))->disable(),
-                function () {
-                    return 1;
-                },
+                fn () => 1,
                 'a non-empty value returned when exponential backoff disabled by calling method disable().',
             ],
         ];
@@ -135,11 +123,7 @@ class NullConditionTest extends TestCase
 
         $e = null;
         try {
-            $backoff->run(
-                function () {
-                    throw new Exception();
-                }
-            );
+            $backoff->run(fn () => throw new Exception());
         } catch (Exception $e) {
             // Nothing to do here. Exceptions will be evaluated in the finally block.
         } finally {
@@ -153,25 +137,22 @@ class NullConditionTest extends TestCase
     }
 
     /**
-     * @return array<array{0: int, 1: ExponentialBackoff, 2: string}>
+     * @return array<string, array{0: int, 1: ExponentialBackoff}>
      */
-    public function dataUnsuccessfulRetries(): array
+    public static function dataUnsuccessfulRetries(): array
     {
         return [
-            [
+            'exception thrown out when exponential backoff disabled with a null condition.' => [
                 4,
                 new ExponentialBackoff(new NullCondition()),
-                'exception thrown out when exponential backoff disabled with a null condition.',
             ],
-            [
+            'exception thrown out when exponential backoff disabled by setting maximum # of attempts to 1.' => [
                 1,
                 (new ExponentialBackoff(new EmptyValueCondition()))->setMaxAttempts(1),
-                'exception thrown out when exponential backoff disabled by setting maximum # of attempts to 1.',
             ],
-            [
+            'exception thrown out when exponential backoff disabled by calling method disable().' => [
                 1,
                 (new ExponentialBackoff(new EmptyValueCondition()))->disable(),
-                'exception thrown out when exponential backoff disabled by calling method disable().',
             ],
         ];
     }

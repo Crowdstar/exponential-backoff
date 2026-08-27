@@ -48,9 +48,7 @@ class CustomizedConditionTest extends TestCase
 
         $this->expectException(Exception::class); // Next function call will throw out an exception.
         $this->getBackoff($maxAttempts, false)->run(
-            function () use ($helper) {
-                return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-            }
+            $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...)
         );
     }
 
@@ -66,32 +64,21 @@ class CustomizedConditionTest extends TestCase
     {
         $helper = (new Helper())->setException(Exception::class)->setExpectedFailedAttempts(self::MAX_ATTEMPTS);
         $this->getBackoff($maxAttempts, true)->run(
-            function () use ($helper) {
-                return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-            }
+            $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...)
         );
 
         $this->addToAssertionCount(1); // Since there is no assertions in this test, we manually add the count by 1.
     }
 
     /**
-     * @return array<array{'maxAttempts': int, 'message': string}>
+     * @return array<string, array{0: int}>
      */
-    public function dataBackoff(): array
+    public static function dataBackoff(): array
     {
         return [
-            [
-                'maxAttempts' => 1,
-                'message'     => 'Maximum # of attempts is 1 (exponential backoff disabled)',
-            ],
-            [
-                'maxAttempts' => 2,
-                'message'     => 'Maximum # of attempts is 2',
-            ],
-            [
-                'maxAttempts' => self::MAX_ATTEMPTS,
-                'message'     => 'Maximum # of attempts is 4',
-            ],
+            'Maximum # of attempts is 1 (exponential backoff disabled)' => [1],
+            'Maximum # of attempts is 2'                               => [2],
+            'Maximum # of attempts is 4'                               => [self::MAX_ATTEMPTS],
         ];
     }
 
@@ -102,15 +89,10 @@ class CustomizedConditionTest extends TestCase
     {
         $backoff = (new ExponentialBackoff(
             new class($silenceWhenFailed) extends AbstractRetryCondition {
-                /** @var bool */
-                protected $silenceWhenFailed;
+                protected bool $throwable = true;
 
-                /** @var bool */
-                protected $throwable = true;
-
-                public function __construct(bool $silenceWhenFailed)
+                public function __construct(protected readonly bool $silenceWhenFailed)
                 {
-                    $this->silenceWhenFailed = $silenceWhenFailed;
                 }
 
                 public function throwable(): bool
@@ -119,7 +101,7 @@ class CustomizedConditionTest extends TestCase
                     return $this->throwable;
                 }
 
-                public function met($result, ?Exception $e): bool
+                public function met(mixed $result, ?Exception $e): bool
                 {
                     if ($e === null) {
                         return true;
