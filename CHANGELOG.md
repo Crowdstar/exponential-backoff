@@ -32,6 +32,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x. Property
   _ExponentialBackoff::$currentAttempts_ no longer carries an initial value either: it is set by _::run()_ before the
   first attempt, so reading it through reflection before a run now raises an _Error_ instead of returning 1.
+* **BREAKING** Methods _ExceptionBasedCondition::getException()_ and _ExceptionBasedCondition::setException()_,
+  deprecated since 3.0.10. Use _::getExceptions()_ and _::setExceptions()_ instead, which handle one or more types.
 * Exceptions previously thrown for an invalid backoff type or an invalid `$sapi` value. Both are now impossible, so
   _ExponentialBackoff::__construct()_ and the protected methods _::retry()_ and _::sleep()_ no longer throw.
 
@@ -51,6 +53,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    new ExponentialBackoff($condition, \CrowdStar\Backoff\Sapi::Swoole); // 4.0
    ```
    Pass NULL, or nothing at all, to keep autodetecting Swoole coroutines.
+4. Replace the singular exception accessors on _ExceptionBasedCondition_ with the plural ones:
+   ```php
+   $condition->setException(Exception::class);      // 3.x
+   $condition->setExceptions(Exception::class);     // 4.0, accepts one or more types
+   ```
+   Method _getExceptions()_ returns a `string[]` where _getException()_ returned a single class name.
+5. Drop any call to _ExponentialBackoff::getCurrentAttempts()_. There is no replacement; the attempt counter is
+   internal.
 
 ## [3.0.12] - 2026-04-19
 

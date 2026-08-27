@@ -62,19 +62,6 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     }
 
     /**
-     * @deprecated This will be removed in the next major version. Use {@see self::getExceptions} instead.
-     * @see ExceptionBasedCondition::getExceptions()
-     */
-    public function getException(): string
-    {
-        if (count($this->exceptions) === 1) {
-            return $this->exceptions[0];
-        }
-
-        throw new Exception('Method ' . __METHOD__ . ' can be used only when one type of exception to be handled.');
-    }
-
-    /**
      * @return string[]
      */
     public function getExceptions(): array
@@ -84,14 +71,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
 
     /**
      * @throws Exception
-     * @deprecated This will be removed in the next major version. Use {@see self::setExceptions} instead.
-     * @see ExceptionBasedCondition::setExceptions()
      */
-    public function setException(string $exception): self
-    {
-        return $this->setExceptions($exception);
-    }
-
     public function setExceptions(string ...$exceptions): self
     {
         $this->exceptions = [];

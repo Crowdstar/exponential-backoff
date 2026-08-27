@@ -183,7 +183,7 @@ class ExceptionBasedConditionTest extends TestCase
 
     /**
      * @dataProvider dataSetException
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setExceptions()
      */
     public function testSetException(string $exception): void
     {
@@ -219,7 +219,7 @@ class ExceptionBasedConditionTest extends TestCase
 
     /**
      * @dataProvider dataSetExceptionWithExceptions
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setException()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setExceptions()
      */
     public function testSetExceptionWithExceptions(string $expectedExceptionMessage, string $exception): void
     {
