@@ -33,8 +33,6 @@ $helper = new Helper();
 
 /** @var string $result */
 $result = (new ExponentialBackoff(new EmptyValueCondition()))->run(
-    function () use ($helper) {
-        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned();
-    }
+    $helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...)
 );
 echo "result is: {$result}\n";

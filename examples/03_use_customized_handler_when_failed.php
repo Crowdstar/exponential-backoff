@@ -29,19 +29,19 @@ use CrowdStar\Tests\Backoff\Helper;
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 $helper    = new Helper();
-$condition = new class extends AbstractRetryCondition {
-    public function met($result, ?Exception $e): bool
+$condition = new class($helper) extends AbstractRetryCondition {
+    public function __construct(private readonly Helper $helper)
     {
-        return $GLOBALS['helper']->reachExpectedAttempts(); // @phpstan-ignore method.nonObject
+    }
+
+    public function met(mixed $result, ?Exception $e): bool
+    {
+        return $this->helper->reachExpectedAttempts();
     }
 };
 
 $backoff = new ExponentialBackoff($condition);
 
 /** @var string $result */
-$result = $backoff->run(
-    function () use ($helper) {
-        return $helper->getValue();
-    }
-);
+$result = $backoff->run($helper->getValue(...));
 echo "result is: {$result}\n";

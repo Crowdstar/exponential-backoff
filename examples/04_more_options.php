@@ -26,15 +26,20 @@ use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Type;
 use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 $helper    = new Helper();
-$condition = new class extends AbstractRetryCondition {
-    public function met($result, ?Exception $e): bool
+$condition = new class($helper) extends AbstractRetryCondition {
+    public function __construct(private readonly Helper $helper)
     {
-        return $GLOBALS['helper']->reachExpectedAttempts(); // @phpstan-ignore method.nonObject
+    }
+
+    public function met(mixed $result, ?Exception $e): bool
+    {
+        return $this->helper->reachExpectedAttempts();
     }
 };
 
@@ -44,17 +49,13 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class))
 $backoff = new ExponentialBackoff($condition);
 
 $backoff
-    ->setType(ExponentialBackoff::TYPE_SECONDS)
-    ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
+    ->setType(Type::Seconds)
+    ->setType(Type::Microseconds)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
 ;
 
 /** @var string $result */
-$result = $backoff->run(
-    function () use ($helper) {
-        return $helper->getValue();
-    }
-);
+$result = $backoff->run($helper->getValue(...));
 
 echo "result is: {$result}\n";

@@ -34,9 +34,5 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class))
 $helper  = (new Helper())->setException(Exception::class);
 
 /** @var string $result */
-$result = $backoff->run(
-    function () use ($helper) {
-        return $helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut();
-    }
-);
+$result = $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...));
 echo "result is: {$result}\n";
