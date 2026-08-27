@@ -30,6 +30,10 @@ use Throwable;
  * Types set through $this->setIgnoredExceptions() are never retried, and that takes priority: it is how you say
  * "retry every HttpException, but not HttpBadRequestException", without having to list every sibling of the one
  * exception you want left alone.
+ *
+ * Only exceptions ever get here, because that is all ExponentialBackoff::run() catches. Throwable and interfaces
+ * only Error implements are accepted by the setters, but nothing can ever match them: an Error ends a run whatever
+ * this condition is set up to retry.
  */
 class ExceptionBasedCondition extends AbstractRetryCondition
 {

@@ -13,6 +13,9 @@
      * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
           * [Doing the Waiting Elsewhere](#doing-the-waiting-elsewhere)
      * [5. To Disable Exponential Backoff Temporarily](#5-to-disable-exponential-backoff-temporarily)
+* [Things to Keep in Mind](#things-to-keep-in-mind)
+     * [Not Every Call Is Safe to Retry](#not-every-call-is-safe-to-retry)
+     * [Retries Multiply When They Nest](#retries-multiply-when-they-nest)
 * [Sample Scripts](#sample-scripts)
 
 # Summary
@@ -65,15 +68,16 @@ This piece of code will try a few more times (by default 4) until either we get 
 maximum numbers of retries.
 
 NOTE: Internal PHP errors (class [Error](https://www.php.net/error)) won't trigger exponential backoff. They should be
-fixed manually.
+fixed manually. Listing _Throwable_ or one of _Error_'s subclasses does not change that: only exceptions ever reach a
+retry condition, so a _TypeError_ ends a run however the condition is set up.
 
 ```php
 <?php
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 
-// Allow to catch multiple types of exceptions and throwable objects.
-$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
+// Allow to catch multiple types of exceptions.
+$backoff = new ExponentialBackoff(new ExceptionBasedCondition(LogicException::class, RuntimeException::class));
 try {
     $result = $backoff->run(
         function () {
@@ -222,7 +226,7 @@ use CrowdStar\Backoff\Jitter;
 
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
-$backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
+$backoff = new ExponentialBackoff(new ExceptionBasedCondition(LogicException::class, RuntimeException::class));
 $backoff = ExponentialBackoff::when(fn (mixed $result, ?Exception $e): bool => ($e instanceof Exception));
 
 $backoff
@@ -309,6 +313,28 @@ $result = (new ExponentialBackoff(new NullCondition()))
 ```
 
 All these 3 code piece work the same, having return value of method call _MyClass::fetchData()_ assigned to variable _$result_.
+
+# Things to Keep in Mind
+
+## Not Every Call Is Safe to Retry
+
+A retry sends the same call again, so it is only safe where sending it twice is as good as sending it once. Reads
+usually are. Anything that creates or changes something may well not be: a request that timed out on the way back may
+have been carried out in full, and retrying it then does the work twice.
+
+Where a call is not naturally repeatable, make it so before retrying — a payment provider taking an idempotency key,
+a database statement written to be a no-op the second time — or accept the duplicate knowingly. This library retries
+whatever closure it is handed and cannot tell the difference.
+
+## Retries Multiply When They Nest
+
+Attempts multiply through layers rather than adding up. Retrying 4 times around a call that itself retries 4 times is
+16 attempts, and three such layers is 64; a five-deep stack of three retries each reaches 243 attempts on whatever
+sits at the bottom, which is usually the thing that was already struggling.
+
+Method _\CrowdStar\Backoff\ExponentialBackoff::run()_ takes any closure at all, including one that retries inside. When
+several layers of your own code could each retry, pick one of them — as a rule the one closest to the failing call —
+and let the failure travel up from the others.
 
 # Sample Scripts
 
