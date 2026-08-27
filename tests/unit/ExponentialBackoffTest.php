@@ -50,8 +50,6 @@ class ExponentialBackoffTest extends TestCase
         Closure $c,
         string $message
     ): void {
-        $this->assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
-
         // Reuse the same instance of ExponentialBackoff multiple times.
         for ($i = 0; $i < 2; $i++) {
             $helper->reset();

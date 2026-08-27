@@ -48,7 +48,6 @@ class NullConditionTest extends TestCase
         Closure $c,
         string $message
     ): void {
-        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
         self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
         self::assertSame($expectedValue, $backoff->run($c), $message);
         self::assertSame(
@@ -118,7 +117,6 @@ class NullConditionTest extends TestCase
      */
     public function testUnsuccessfulRetries(int $expectedMaxAttempts, ExponentialBackoff $backoff): void
     {
-        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
         self::assertSame($expectedMaxAttempts, $backoff->getMaxAttempts(), 'check maximum number of allowed attempts');
 
         $e = null;

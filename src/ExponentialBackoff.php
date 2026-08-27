@@ -39,9 +39,9 @@ class ExponentialBackoff
     protected int $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
 
     /**
-     * @todo Drop the initial value in version 4.0 (once we have method $this->>getCurrentAttempts() removed).
+     * Set by method $this->run() before the first attempt is made.
      */
-    protected int $currentAttempts = 1;
+    protected int $currentAttempts;
 
     protected AbstractRetryCondition $retryCondition;
 
@@ -120,14 +120,6 @@ class ExponentialBackoff
         $this->maxAttempts = $maxAttempts;
 
         return $this;
-    }
-
-    /**
-     * @deprecated Will be removed in 4.0.
-     */
-    public function getCurrentAttempts(): int
-    {
-        return $this->currentAttempts;
     }
 
     public function getRetryCondition(): AbstractRetryCondition

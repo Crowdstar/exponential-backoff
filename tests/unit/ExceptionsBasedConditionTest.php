@@ -61,7 +61,6 @@ class ExceptionsBasedConditionTest extends TestCase
                 ->setMaxAttempts($maxAttempts)
             ;
 
-            self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
             self::assertSame(
                 $helper->getValue(),
                 $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithExceptionsThrownOut(...)),
@@ -196,7 +195,6 @@ class ExceptionsBasedConditionTest extends TestCase
         $backoff = (new ExponentialBackoff(new ExceptionBasedCondition(...$exceptionsToCatch)))
             ->setMaxAttempts($maxAttempts)
         ;
-        self::assertSame(1, getCurrentAttempts($backoff), 'current iteration should be 1 (not yet started)');
 
         $helper = (new Helper())
             ->setExceptions(...$exceptionsToThrow)
