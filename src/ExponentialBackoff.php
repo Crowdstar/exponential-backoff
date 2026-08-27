@@ -63,6 +63,8 @@ class ExponentialBackoff
 
     protected int $maxTimeout = self::DEFAULT_MAX_TIMEOUT;
 
+    protected ?int $maxElapsedTime = null;
+
     /** @var ?Closure(int): void */
     protected ?Closure $sleeper = null;
 
@@ -99,7 +101,8 @@ class ExponentialBackoff
      */
     public function run(Closure $c, mixed ...$params): mixed
     {
-        $attempt = 1;
+        $attempt   = 1;
+        $startedAt = hrtime(true);
 
         do {
             $result = $e = null;
@@ -109,7 +112,7 @@ class ExponentialBackoff
             } catch (\Exception $e) {
                 // Nothing to process here.
             }
-        } while ($this->retry($result, $e, $attempt++));
+        } while ($this->retry($result, $e, $attempt++, $startedAt));
 
         // If you still have an exception, throw it out if needed.
         if (!empty($e) && $this->getRetryCondition()->throwable()) {
@@ -208,6 +211,35 @@ class ExponentialBackoff
         return $this;
     }
 
+    public function getMaxElapsedTime(): ?int
+    {
+        return $this->maxElapsedTime;
+    }
+
+    /**
+     * Give the whole run a wall-clock budget: once the next wait would not finish inside it, the run stops and hands
+     * back whatever the last attempt produced.
+     *
+     * Worth having even alongside a maximum number of attempts, because attempts say nothing about how long they
+     * take, and it is the wall clock a caller is usually up against. Note that PHP's own max_execution_time will not
+     * save you here: on Unix it does not count time spent in usleep(), so a runaway backoff is killed by whatever sits
+     * in front of the process -- PHP-FPM, a proxy -- rather than by PHP, and it is killed mid-wait, with no error to
+     * log.
+     *
+     * @param ?int $maxElapsedTime the budget in microseconds; NULL for no budget at all, which is the default.
+     * @throws Exception
+     */
+    public function setMaxElapsedTime(?int $maxElapsedTime): self
+    {
+        if (($maxElapsedTime !== null) && ($maxElapsedTime < 1)) {
+            throw new Exception('maximum elapsed time must be at least 1 microsecond, or NULL for no budget');
+        }
+
+        $this->maxElapsedTime = $maxElapsedTime;
+
+        return $this;
+    }
+
     public function getMaxTimeout(): int
     {
         return $this->maxTimeout;
@@ -281,7 +313,7 @@ class ExponentialBackoff
         };
     }
 
-    protected function retry(mixed $result, ?\Exception $e, int $attempt): bool
+    protected function retry(mixed $result, ?\Exception $e, int $attempt, int $startedAt): bool
     {
         if (!$this->getRetryCondition()->shouldRetry($result, $e)) {
             return false;
@@ -291,13 +323,6 @@ class ExponentialBackoff
             return false;
         }
 
-        $this->sleep($attempt);
-
-        return true;
-    }
-
-    protected function sleep(int $attempt): void
-    {
         $microSeconds = self::getTimeoutMicroseconds(
             $attempt,
             $this->getInitialTimeout(),
@@ -305,6 +330,35 @@ class ExponentialBackoff
             $this->getJitter()
         );
 
+        if (!$this->affords($microSeconds, $startedAt)) {
+            return false;
+        }
+
+        $this->sleep($microSeconds);
+
+        return true;
+    }
+
+    /**
+     * Whether waiting this long leaves the run inside the elapsed time it was given.
+     *
+     * A wait that would overrun the budget is not started at all, rather than being cut short: a wait cut short ends
+     * at whatever moment the budget runs out, which is the same moment for every client that started together -- the
+     * very thing the randomness is there to avoid.
+     */
+    protected function affords(int $microSeconds, int $startedAt): bool
+    {
+        if ($this->maxElapsedTime === null) {
+            return true;
+        }
+
+        $elapsed = intdiv(hrtime(true) - $startedAt, 1_000);
+
+        return ($elapsed + $microSeconds) <= $this->maxElapsedTime;
+    }
+
+    protected function sleep(int $microSeconds): void
+    {
         if ($this->sleeper !== null) {
             ($this->sleeper)($microSeconds);
 

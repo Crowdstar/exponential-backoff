@@ -367,6 +367,71 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
+     * The budget is real wall clock, so this one waits for real: an initial timeout of 0.1 second doubling to 0.2 does
+     * not fit inside 0.25 second, so the run stops after the first wait instead of starting a second.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::affords()
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setMaxElapsedTime()
+     */
+    public function testMaxElapsedTimeStopsTheRun(): void
+    {
+        $helper  = (new Helper())->setExpectedFailedAttempts(10);
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition()))
+            ->setJitter(Jitter::None)
+            ->setInitialTimeout(100_000)
+            ->setMaxElapsedTime(250_000)
+            ->setMaxAttempts(10)
+        ;
+
+        $start  = microtime(true);
+        $result = $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
+
+        self::assertSame('', $result, 'the run gave up and handed back what the last attempt produced');
+        self::assertSame(
+            2,
+            $helper->getAttemptsMade(),
+            'one wait of 0.1s fitted the budget, the next one of 0.2s did not'
+        );
+        self::assertLessThanOrEqual(0.25, microtime(true) - $start, 'the budget was not overrun');
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::affords()
+     */
+    public function testMaxElapsedTimeLeavesRoomForTheWholeSchedule(): void
+    {
+        $slept   = [];
+        $helper  = new Helper();
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition()))
+            ->setJitter(Jitter::None)
+            ->setMaxElapsedTime(30_000_000)
+            ->setSleeper(function (int $microSeconds) use (&$slept): void {
+                $slept[] = $microSeconds;
+            })
+        ;
+
+        $backoff->run($helper->getValueAfterExpectedNumberOfFailedAttemptsWithEmptyReturnValuesReturned(...));
+
+        self::assertSame([250_000, 500_000, 1_000_000], $slept, 'a budget it fits inside changes nothing');
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::setMaxElapsedTime()
+     */
+    public function testMaxElapsedTimeIsUnsetByDefault(): void
+    {
+        $backoff = new ExponentialBackoff(new EmptyValueCondition());
+
+        self::assertNull($backoff->getMaxElapsedTime());
+        self::assertSame(5_000, $backoff->setMaxElapsedTime(5_000)->getMaxElapsedTime());
+        self::assertNull($backoff->setMaxElapsedTime(null)->getMaxElapsedTime(), 'and it can be taken back off');
+
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage('maximum elapsed time must be at least 1 microsecond');
+        $backoff->setMaxElapsedTime(0);
+    }
+
+    /**
      * A sleeper that records instead of waiting is what lets this assert the timeouts themselves, rather than how long
      * the whole run took. Nothing else in this suite checks the sequence.
      *
@@ -477,11 +542,15 @@ class ExponentialBackoffTest extends TestCase
         // Round #3 of a 250ms initial timeout is one second, well below the default maximum.
         self::assertGreaterThanOrEqual($expectedMin, min($timeouts), 'no timeout fell below the range');
         self::assertLessThanOrEqual($expectedMax, max($timeouts), 'no timeout went above the range');
-        self::assertCount(
-            ($jitter === Jitter::None) ? 1 : 200,
-            array_unique($timeouts),
-            ($jitter === Jitter::None) ? 'every timeout is the same' : 'the timeouts differ from one another'
-        );
+
+        // Not 200 distinct values: 200 draws from a range half a million wide collide by chance a few percent of the
+        // time, which would make this test flaky rather than strict. Anything near 200 says the same thing.
+        $distinct = count(array_unique($timeouts));
+        if ($jitter === Jitter::None) {
+            self::assertSame(1, $distinct, 'every timeout is the same');
+        } else {
+            self::assertGreaterThan(150, $distinct, 'the timeouts differ from one another');
+        }
     }
 
     /**

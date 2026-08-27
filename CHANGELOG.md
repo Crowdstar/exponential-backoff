@@ -62,6 +62,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   microseconds. It takes precedence over both _Sapi_ modes, and is for waiting on an event loop this library knows
   nothing about — ReactPHP, Amp, Revolt, a Fiber of your own — or for tests, where a callback that records and returns
   makes a retrying test instant and lets it assert the timeouts that would have been waited for.
+* Methods _ExponentialBackoff::setMaxElapsedTime()_ and _::getMaxElapsedTime()_, giving a whole run a wall-clock budget
+  in microseconds on top of its maximum number of attempts. Once the next wait would not finish inside the budget it is
+  not started at all, and the run hands back whatever the last attempt produced. Worth having because attempts say
+  nothing about how long they take, and because PHP's own `max_execution_time` does not count time spent in `usleep()`
+  on Unix — a runaway backoff is otherwise killed mid-wait by PHP-FPM or a proxy, with no error to log.
 
 ### Fixed
 

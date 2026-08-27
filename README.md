@@ -236,6 +236,8 @@ $backoff
     ->setMaxAttempts(4)
     ->setMaxTimeout(5_000_000)  // Wait at most 5 seconds between two attempts.
     ->setMaxTimeout(ExponentialBackoff::DEFAULT_MAX_TIMEOUT)
+    ->setMaxElapsedTime(2_000_000)  // Give the whole run 2 seconds, however many attempts fit inside it.
+    ->setMaxElapsedTime(null)       // No budget at all. The default.
     ->setJitter(Jitter::Equal)  // Wait at least half of the calculated timeout, and randomly up to all of it.
     ->setJitter(Jitter::None)   // Wait exactly as long as calculated; predictable, but no protection from collisions.
     ->setJitter(Jitter::Full);  // Wait anywhere between nothing and the calculated timeout. The default.
