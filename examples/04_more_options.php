@@ -22,7 +22,6 @@
 
 declare(strict_types=1);
 
-use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
@@ -31,22 +30,12 @@ use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-$helper    = new Helper();
-$condition = new class($helper) extends AbstractRetryCondition {
-    public function __construct(private readonly Helper $helper)
-    {
-    }
-
-    public function shouldRetry(mixed $result, ?Exception $e): bool
-    {
-        return !$this->helper->reachExpectedAttempts();
-    }
-};
+$helper = new Helper();
 
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class));
-$backoff = new ExponentialBackoff($condition);
+$backoff = ExponentialBackoff::when(fn (): bool => !$helper->reachExpectedAttempts());
 
 $backoff
     ->setInitialTimeout(1_000_000)  // Wait about 1 second before the first retry.

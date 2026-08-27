@@ -76,6 +76,19 @@ class ExponentialBackoff
     }
 
     /**
+     * Build a backoff that retries for as long as given closure says so, without having to write a condition class:
+     *
+     *     ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run($c);
+     *
+     * @param Closure(mixed, ?\Exception): bool $callback  return TRUE from this to attempt the call again.
+     * @param bool                              $throwable whether to throw an exception the last attempt was left with.
+     */
+    public static function when(Closure $callback, bool $throwable = true, ?Sapi $sapi = null): self
+    {
+        return new self(new CallbackCondition($callback, $throwable), $sapi);
+    }
+
+    /**
      * The attempt counter lives here rather than on the object, so that one instance can be handed to several callers
      * at once -- concurrent coroutines, or a closure that calls run() again -- without them counting over each other.
      *

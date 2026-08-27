@@ -22,25 +22,13 @@
 
 declare(strict_types=1);
 
-use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Tests\Backoff\Helper;
 
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
-$helper    = new Helper();
-$condition = new class($helper) extends AbstractRetryCondition {
-    public function __construct(private readonly Helper $helper)
-    {
-    }
-
-    public function shouldRetry(mixed $result, ?Exception $e): bool
-    {
-        return !$this->helper->reachExpectedAttempts();
-    }
-};
-
-$backoff = new ExponentialBackoff($condition);
+$helper  = new Helper();
+$backoff = ExponentialBackoff::when(fn (): bool => !$helper->reachExpectedAttempts());
 
 /** @var string $result */
 $result = $backoff->run($helper->getValue(...));

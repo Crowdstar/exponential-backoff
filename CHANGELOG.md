@@ -49,6 +49,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * Method _ExponentialBackoff::getSapi()_, telling which mode a wait would happen in right now.
 * Enum _CrowdStar\Backoff\Jitter_ with cases _None_, _Full_ and _Equal_, along with methods
   _ExponentialBackoff::setJitter()_ and _::getJitter()_ and constant _ExponentialBackoff::DEFAULT_JITTER_.
+* Class _CrowdStar\Backoff\CallbackCondition_ and method _ExponentialBackoff::when()_, for deciding whether to retry
+  with a closure instead of a condition class of your own:
+  `ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run($c)`. The closure receives what the call
+  returned and what it threw; a second argument to _::when()_ says whether an exception the last attempt was left with
+  should be thrown out.
 
 ### Fixed
 

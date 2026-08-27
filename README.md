@@ -121,23 +121,58 @@ If needed, you can have more complex logic defined when overriding method _Abstr
 ## 3. Retry When Customized Condition Met
 
 Following code is to try to fetch some non-empty data back with method _MyClass::fetchData()_. This piece of code works
-the same as the first example, except that here it's implemented with a customized condition class instead of class
-_\CrowdStar\Backoff\EmptyValueCondition_.
+the same as the first example, except that here the condition to retry on is written out instead of coming from class
+_\CrowdStar\Backoff\EmptyValueCondition_. Method _\CrowdStar\Backoff\ExponentialBackoff::when()_ takes a closure that
+receives what the call returned and what it threw, and returns TRUE for as long as another attempt should be made:
+
+```php
+<?php
+use CrowdStar\Backoff\ExponentialBackoff;
+
+$result = ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run(
+    function () {
+        return MyClass::fetchData();
+    }
+);
+?>
+```
+
+The closure is given both the return value and the exception, so conditions about exceptions work the same way:
+
+```php
+<?php
+use CrowdStar\Backoff\ExponentialBackoff;
+
+// Retry when a \RuntimeException was thrown, and don't throw it out when the last attempt still fails.
+$backoff = ExponentialBackoff::when(
+    fn (mixed $result, ?Exception $e): bool => ($e instanceof RuntimeException),
+    false
+);
+$result = $backoff->run(
+    function () {
+        return MyClass::fetchData();
+    }
+);
+?>
+```
+
+Where a condition is worth naming and reusing, write a class for it instead, the way
+_\CrowdStar\Backoff\EmptyValueCondition_ and _\CrowdStar\Backoff\ExceptionBasedCondition_ do:
 
 ```php
 <?php
 use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 
-$backoff = new ExponentialBackoff(
-    new class extends AbstractRetryCondition {
-        public function shouldRetry(mixed $result, ?Exception $e): bool
-        {
-            return empty($result);
-        }
+final class UntilRateLimitLifts extends AbstractRetryCondition
+{
+    public function shouldRetry(mixed $result, ?Exception $e): bool
+    {
+        return ($result?->getStatusCode() === 429);
     }
-);
-$result = $backoff->run(
+}
+
+$result = (new ExponentialBackoff(new UntilRateLimitLifts()))->run(
     function () {
         return MyClass::fetchData();
     }
@@ -148,14 +183,13 @@ $result = $backoff->run(
 ## 4. More Options When Doing Exponential Backoff
 
 Following code is to try to fetch some data back with method _MyClass::fetchData()_. This piece of code works the
-same as the second example, except that here it's implemented with a customized condition class instead of class
+same as the second example, except that here the condition to retry on is written out instead of coming from class
 _\CrowdStar\Backoff\ExceptionBasedCondition_.
 
 In this piece of code, we also show what options are available when doing exponential backoff with the package.
 
 ```php
 <?php
-use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
@@ -164,14 +198,7 @@ use CrowdStar\Backoff\Jitter;
 $backoff = new ExponentialBackoff(new EmptyValueCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition());
 $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class, Throwable::class));
-$backoff = new ExponentialBackoff(
-    new class extends AbstractRetryCondition {
-        public function shouldRetry(mixed $result, ?Exception $e): bool
-        {
-            return ($e instanceof Exception);
-        }
-    }
-);
+$backoff = ExponentialBackoff::when(fn (mixed $result, ?Exception $e): bool => ($e instanceof Exception));
 
 $backoff
     ->setInitialTimeout(1_000_000)  // Wait about 1 second before the first retry.
