@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2026-08-28
+
+The same code as 4.0.0; this changelog entry is the only difference between the two tags. Packagist published 4.0.0 at
+an earlier commit, before the timeout-to-delay rename landed, and a stable version there cannot be republished at a
+different reference — so 4.0.0 is not installable through Composer at all. Require 4.0.1 instead; what it contains is
+the 4.0.0 entry below.
+
 ## [4.0.0] - 2026-08-28
 
 The list below is long, but nearly all of it is on API surface you had to opt into. An ordinary 3.x caller has a line or
@@ -312,6 +319,7 @@ instance used to cut each other's runs short while reporting success.
 
 * First public release that is ready for production use.
 
+[4.0.1]: https://github.com/Crowdstar/exponential-backoff/releases/tag/4.0.1
 [4.0.0]: https://github.com/Crowdstar/exponential-backoff/releases/tag/4.0.0
 [3.0.12]: https://github.com/Crowdstar/exponential-backoff/releases/tag/3.0.12
 [3.0.11]: https://github.com/Crowdstar/exponential-backoff/releases/tag/3.0.11
