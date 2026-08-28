@@ -20,11 +20,11 @@ declare(strict_types=1);
 namespace CrowdStar\Backoff;
 
 /**
- * Which primitive waits between attempts.
+ * How the waiting between attempts happens.
  *
- * Of the two cases worth passing to ExponentialBackoff::__construct(), only Mode::Blocking changes anything:
- * Mode::Swoole is what happens anyway wherever a Swoole coroutine is running, so passing it does the same as passing
- * nothing. Mode::Sleeper is reported by ExponentialBackoff::getMode() and is not something to pass.
+ * Only two of the three cases can be passed to ExponentialBackoff::__construct(), and of those only Mode::Blocking
+ * changes anything: Mode::Swoole is what happens anyway wherever a Swoole coroutine is running, so passing it does the
+ * same as passing nothing. Mode::Sleeper is an answer rather than a request, and the constructor rejects it.
  */
 enum Mode
 {
@@ -46,10 +46,11 @@ enum Mode
     case Swoole;
 
     /**
-     * A callback set with ExponentialBackoff::setSleeper() does the waiting, so neither of the other two cases applies.
+     * A callback set with ExponentialBackoff::setSleeper() does the waiting, so neither primitive applies.
      *
-     * Only ever returned by ExponentialBackoff::getMode(). Passing it to the constructor is not an error, but says
-     * nothing: what a wait does is then worked out the way NULL has it, because the sleeper decides this on its own.
+     * Only ever returned by ExponentialBackoff::getMode(); the constructor throws on it. Ask for this by handing
+     * ExponentialBackoff::setSleeper() a callback -- which is the only thing that can bring it about -- rather than by
+     * naming the case.
      */
     case Sleeper;
 }

@@ -492,6 +492,27 @@ class ExponentialBackoffTest extends TestCase
     }
 
     /**
+     * Mode::Sleeper is what getMode() answers, never something to ask for: only setSleeper() brings it about.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::__construct()
+     */
+    public function testSleeperModeCannotBeAskedFor(): void
+    {
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        $this->expectExceptionMessage('mode Sleeper is answered by getMode(), not asked for');
+        new ExponentialBackoff(new EmptyValueCondition(), Mode::Sleeper);
+    }
+
+    /**
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::when()
+     */
+    public function testSleeperModeCannotBeAskedForThroughWhen(): void
+    {
+        $this->expectException(\CrowdStar\Backoff\Exception::class);
+        ExponentialBackoff::when(fn (): bool => false, true, Mode::Sleeper);
+    }
+
+    /**
      * @covers \CrowdStar\Backoff\ExponentialBackoff::setSleeper()
      */
     public function testSleeperCanBeTakenBackOut(): void

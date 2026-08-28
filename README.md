@@ -278,7 +278,9 @@ $backoff->getMode();  // Mode::Swoole or Mode::Blocking, whichever the next wait
 ```
 
 There is a third case, _Mode::Sleeper_, which `getMode()` returns while a callback set with `setSleeper()` is doing the
-waiting instead — see below. It is a report, not something to pass to the constructor.
+waiting instead — see below. That one is an answer rather than a request: passing it to the constructor throws a
+_\CrowdStar\Backoff\Exception_, because handing over the waiting is what `setSleeper()` is for and no case can stand in
+for a callback.
 
 _Mode::Swoole_ where no coroutine is running falls back to a blocking wait rather than raising the _Swoole\Error_ that
 `Coroutine::sleep()` produces there.

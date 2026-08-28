@@ -76,10 +76,20 @@ class ExponentialBackoff
      * A subclass that keeps this signature gets a working self::when(); one that does not has to override ::when() as
      * well, or set its own state up in a factory of its own.
      *
+     * Mode::Sleeper is rejected rather than ignored. It is what $this->getMode() answers once $this->setSleeper() has
+     * been handed a callback, and nothing passed here can bring that about -- there is no callback to pass. Every other
+     * argument this class refuses is refused the same way, so silently accepting a meaningless one would be the odd
+     * case out.
+     *
      * @param ?Mode $mode which primitive waits between attempts; worked out per wait when NULL.
+     * @throws Exception
      */
     public function __construct(AbstractRetryCondition $retryCondition, ?Mode $mode = null)
     {
+        if ($mode === Mode::Sleeper) {
+            throw new Exception('mode Sleeper is answered by getMode(), not asked for; use setSleeper() instead');
+        }
+
         $this->mode = $mode;
 
         $this->setRetryCondition($retryCondition);
@@ -92,6 +102,7 @@ class ExponentialBackoff
      *
      * @param Closure(mixed, ?\Exception): bool $callback return TRUE from this to attempt the call again.
      * @param bool $throwable whether to throw an exception the last attempt was left with.
+     * @throws Exception
      */
     public static function when(Closure $callback, bool $throwable = true, ?Mode $mode = null): static
     {
@@ -102,7 +113,7 @@ class ExponentialBackoff
      * The attempt counter lives here rather than on the object, so that one instance can be handed to several callers
      * at once -- concurrent coroutines, or a closure that calls run() again -- without them counting over each other.
      *
-     * @throws Exception
+     * @throws \Exception whatever the closure threw on its last attempt, which is rarely one of this library's own.
      */
     public function run(Closure $c, mixed ...$params): mixed
     {

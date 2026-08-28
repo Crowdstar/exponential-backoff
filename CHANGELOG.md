@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [4.0.0] - 2026-08-27
+## [4.0.0] - 2026-08-28
 
 ### Changed
 
@@ -48,7 +48,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   constructor parameter instead of having the mode worked out per wait, and only _Mode::Blocking_ changes anything: it
   opts out of non-blocking waits altogether, where _Mode::Swoole_ and NULL both mean "wait non-blockingly where a
   coroutine is running". _Mode::Sleeper_ is only ever reported by _::getMode()_, for when a callback set with
-  _::setSleeper()_ is doing the waiting.
+  _::setSleeper()_ is doing the waiting; the constructor rejects it, since no case can stand in for a callback.
 * Methods _ExponentialBackoff::setInitialTimeout()_, _::getInitialTimeout()_, _::setMaxTimeout()_ and
   _::getMaxTimeout()_, plus constants _ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT_ and _::DEFAULT_MAX_TIMEOUT_.
 * Method _ExponentialBackoff::getMode()_, telling which mode a wait would happen in right now.
@@ -104,8 +104,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   attempt counter belongs to a single run and is no longer kept on the object.
 * **BREAKING** Methods _ExceptionBasedCondition::getException()_ and _ExceptionBasedCondition::setException()_,
   deprecated since 3.0.10. Use _::getExceptions()_ and _::setExceptions()_ instead, which handle one or more types.
-* Exceptions previously thrown for an invalid backoff type or an invalid second constructor argument. Both are now
-  impossible, so _ExponentialBackoff::__construct()_ no longer throws.
+* The exception previously thrown for an invalid backoff type. The backoff type is gone entirely, so there is nothing
+  left to reject. _ExponentialBackoff::__construct()_ still rejects one second argument — _Mode::Sleeper_, which
+  _::getMode()_ answers but nobody asks for — where before it rejected any integer outside the two SAPI constants.
 
 ### Migration from 3.x
 
