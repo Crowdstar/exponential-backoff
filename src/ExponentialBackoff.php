@@ -178,15 +178,43 @@ class ExponentialBackoff
      */
     public static function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
     {
-        return (int) (self::getTimeoutMicroseconds($iteration, $initialTimeout * 1000000) / 1000000);
+        // Clamped before the multiplication rather than after it, by when a large enough value has already left integer
+        // range and turned into a float that this method's own int parameter would reject.
+        $initialTimeout = min(max(0, $initialTimeout), intdiv(PHP_INT_MAX, 1000000));
+
+        return intdiv(self::getTimeoutMicroseconds($iteration, $initialTimeout * 1000000), 1000000);
     }
 
     /**
      * Get the next timeout in microseconds.
+     *
+     * The timeout doubles on every iteration, up to a ceiling that leaves room for the randomness added afterwards.
+     * Iterations below 1 are treated as the first one, and a timeout of nothing stays nothing.
      */
     public static function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
     {
-        $timeout = $initialTimeout * (1 << --$iteration);
+        // A tenth of the timeout is added below, so a timeout of ten elevenths of the maximum is as high as the sum can
+        // go without leaving integer range.
+        $ceiling = intdiv(PHP_INT_MAX, 11) * 10;
+        $timeout = min(max(0, $initialTimeout), $ceiling);
+
+        // Doubling in a loop that stops at the ceiling, rather than shifting by ($iteration - 1), keeps the timeout
+        // inside integer range whatever it is handed. The shift broke down in three ways once enough attempts were
+        // configured, all of them reachable through setMaxAttempts() and none of them catchable by run(), which handles
+        // exceptions rather than errors: from the 46th iteration on the timeout no longer fit in an integer and this
+        // method threw a TypeError; from the 65th on, shifting by more than the width of an integer returned 0 and
+        // disabled the backoff silently; and a non-positive iteration raised an ArithmeticError.
+        //
+        // A timeout of nothing is left alone: doubling it would not move it, and looping until $iteration ran out could
+        // take millennia.
+        for ($i = 1; ($i < $iteration) && ($timeout > 0); $i++) {
+            if ($timeout > intdiv($ceiling, 2)) {
+                $timeout = $ceiling;
+                break;
+            }
+
+            $timeout *= 2;
+        }
 
         // We throw in some randomness here to try to prevent connections from colliding
         return $timeout + random_int(0, intdiv($timeout, 10));

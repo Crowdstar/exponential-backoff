@@ -316,4 +316,170 @@ class ExponentialBackoffTest extends TestCase
 
         return array_merge($simpleData, $data);
     }
+
+    /**
+     * The doubling used to be a bit shift, which broke down once enough attempts were configured. Every iteration the
+     * shift handled correctly still gets the same timeout it always did.
+     *
+     * @dataProvider dataTimeoutsMatchTheShiftThatCameBefore
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
+     */
+    public function testTimeoutsMatchTheShiftThatCameBefore(int $iteration, int $initialTimeout): void
+    {
+        $expected = $initialTimeout * (1 << ($iteration - 1));
+
+        self::assertThat(
+            ExponentialBackoff::getTimeoutMicroseconds($iteration, $initialTimeout),
+            self::logicalAnd(
+                self::greaterThanOrEqual($expected),
+                self::lessThanOrEqual($expected + intdiv($expected, 10))
+            ),
+            sprintf(
+                'For round #%d with initial timeout %d, the timeout should still be %d plus up to a tenth of it.',
+                $iteration,
+                $initialTimeout,
+                $expected
+            )
+        );
+    }
+
+    /**
+     * @return array<array<int>>
+     */
+    public function dataTimeoutsMatchTheShiftThatCameBefore(): array
+    {
+        // One iteration short of where each initial timeout made the shift overflow, which is as far as the old
+        // behaviour is defined and therefore as far as it is worth pinning down.
+        $data = [];
+        foreach ([1 => 63, 250000 => 45, 1000000 => 43] as $initialTimeout => $lastGoodIteration) {
+            for ($iteration = 1; $iteration <= $lastGoodIteration; $iteration++) {
+                $data[] = [$iteration, $initialTimeout];
+            }
+        }
+
+        return $data;
+    }
+
+    /**
+     * Iterations that used to raise an ArithmeticError, throw a TypeError or silently return 0 -- all of them reachable
+     * through setMaxAttempts(), and none of them catchable by run(), which handles exceptions rather than errors.
+     *
+     * @dataProvider dataTimeoutsSurviveEveryIteration
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
+     */
+    public function testTimeoutsSurviveEveryIteration(int $expectedMin, int $expectedMax, int $iteration): void
+    {
+        self::assertThat(
+            ExponentialBackoff::getTimeoutMicroseconds($iteration),
+            self::logicalAnd(
+                self::greaterThanOrEqual($expectedMin),
+                self::lessThanOrEqual($expectedMax)
+            ),
+            sprintf(
+                'For round #%d, expected timeout should be between %d and %d.',
+                $iteration,
+                $expectedMin,
+                $expectedMax
+            )
+        );
+    }
+
+    /**
+     * @return array<array<int>>
+     */
+    public function dataTimeoutsSurviveEveryIteration(): array
+    {
+        // Ten elevenths of PHP_INT_MAX: as high as a timeout can go and still leave room for the tenth of itself that
+        // gets added to it.
+        $ceiling = intdiv(PHP_INT_MAX, 11) * 10;
+
+        return [
+            // Anything below the first iteration is treated as the first one, rather than shifting by a negative
+            // number.
+            [250000, 275000, PHP_INT_MIN],
+            [250000, 275000, -1],
+            [250000, 275000, 0],
+            [250000, 275000, 1],
+
+            // Where the shift used to overflow to a float that the int return type then rejected.
+            [$ceiling, PHP_INT_MAX, 46],
+            [$ceiling, PHP_INT_MAX, 47],
+
+            // Where the shift used to exceed the width of an integer, come back as 0 and disable the backoff.
+            [$ceiling, PHP_INT_MAX, 64],
+            [$ceiling, PHP_INT_MAX, 65],
+            [$ceiling, PHP_INT_MAX, 1000],
+            [$ceiling, PHP_INT_MAX, PHP_INT_MAX],
+        ];
+    }
+
+    /**
+     * A timeout of nothing has nothing to double, which the doubling loop has to notice: it would otherwise sit there
+     * multiplying 0 by 2 until $iteration ran out, about 3400 years' worth for PHP_INT_MAX.
+     *
+     * @dataProvider dataTimeoutsOfNothingStayNothing
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutMicroseconds
+     */
+    public function testTimeoutsOfNothingStayNothing(int $initialTimeout): void
+    {
+        self::assertSame(
+            0,
+            ExponentialBackoff::getTimeoutMicroseconds(PHP_INT_MAX, $initialTimeout),
+            "an initial timeout of {$initialTimeout} should come back as 0 rather than spin or throw"
+        );
+    }
+
+    /**
+     * @return array<array<int>>
+     */
+    public function dataTimeoutsOfNothingStayNothing(): array
+    {
+        return [[0], [-1], [PHP_INT_MIN]];
+    }
+
+    /**
+     * @dataProvider dataTimeoutSecondsSurviveEveryInput
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getTimeoutSeconds
+     */
+    public function testTimeoutSecondsSurviveEveryInput(
+        int $expectedMin,
+        int $expectedMax,
+        int $iteration,
+        int $initialTimeout
+    ): void {
+        self::assertThat(
+            ExponentialBackoff::getTimeoutSeconds($iteration, $initialTimeout),
+            self::logicalAnd(
+                self::greaterThanOrEqual($expectedMin),
+                self::lessThanOrEqual($expectedMax)
+            ),
+            sprintf(
+                'For round #%d with initial timeout %d, expected timeout should be between %d and %d.',
+                $iteration,
+                $initialTimeout,
+                $expectedMin,
+                $expectedMax
+            )
+        );
+    }
+
+    /**
+     * @return array<array<int>>
+     */
+    public function dataTimeoutSecondsSurviveEveryInput(): array
+    {
+        return [
+            [1, 1, 0, 1],
+            [1, 1, -1, 1],
+            [50, 55, 1, 50],
+
+            // An initial timeout large enough that turning it into microseconds overflowed on its own, before the
+            // doubling had a chance to.
+            [0, PHP_INT_MAX, 1, PHP_INT_MAX],
+            [0, PHP_INT_MAX, 65, PHP_INT_MAX],
+            [0, PHP_INT_MAX, PHP_INT_MAX, 1],
+            [0, 0, 1, 0],
+            [0, 0, 1, -1],
+        ];
+    }
 }
