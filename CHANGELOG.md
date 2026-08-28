@@ -36,6 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   failed together are what this spreads out; the measurements behind it are in the AWS article linked from enum
   _CrowdStar\Backoff\Jitter_. Pass _Jitter::None_ for the previous predictability, or _Jitter::Equal_ to keep at least
   half of every timeout.
+* **BREAKING** Method _ExponentialBackoff::run()_ now declares `mixed ...$params` and a `mixed` return type. Calling it
+  is unchanged; a subclass that overrides _::run()_ has to declare both, or PHP rejects the declaration outright.
 * The randomness is no longer rounded away for timeouts of about a second. Where a seconds-mode timeout used to be
   rounded down to whole seconds after being randomized — which for a one-second timeout discarded the randomness
   entirely, leaving every client to retry in lockstep — nothing rounds any more.
@@ -53,7 +55,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   with a closure instead of a condition class of your own:
   `ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run($c)`. The closure receives what the call
   returned and what it threw; a second argument to _::when()_ says whether an exception the last attempt was left with
-  should be thrown out.
+  should be thrown out, and a third takes the same _Sapi_ case the constructor does.
 * Methods _ExceptionBasedCondition::setIgnoredExceptions()_ and _::getIgnoredExceptions()_, listing types that are
   never retried. Ignored types take priority over the types being retried on, so "retry every _HttpException_ except
   _HttpBadRequestException_" no longer means enumerating every sibling of the one exception to be left alone. An
@@ -131,7 +133,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    retry. Method _getTimeoutSeconds()_ is gone; divide _getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
 4. If you passed the second constructor parameter, pass an enum case instead of an integer:
    ```php
-   new ExponentialBackoff($condition, 2);                          // 3.x
+   new ExponentialBackoff($condition, 2);                               // 3.x
    new ExponentialBackoff($condition, \CrowdStar\Backoff\Sapi::Swoole); // 4.0
    ```
    Pass NULL, or nothing at all, to keep autodetecting Swoole coroutines.
