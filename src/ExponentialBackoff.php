@@ -27,6 +27,8 @@ use Swoole\Coroutine;
  *
  * This class uses an exponential back-off algorithm to calculate the timeout for the next request. Exponential
  * back-offs prevent overloading an unavailable service by doubling the timeout each iteration.
+ *
+ * @phpstan-consistent-constructor so that self::when() can build one of whatever subclass it was called on.
  */
 class ExponentialBackoff
 {
@@ -71,6 +73,9 @@ class ExponentialBackoff
     protected AbstractRetryCondition $retryCondition;
 
     /**
+     * A subclass that keeps this signature gets a working self::when(); one that does not has to override ::when() as
+     * well, or set its own state up in a factory of its own.
+     *
      * @param ?Sapi $sapi how to sleep between attempts; worked out per wait when NULL.
      */
     public function __construct(AbstractRetryCondition $retryCondition, ?Sapi $sapi = null)
@@ -88,9 +93,9 @@ class ExponentialBackoff
      * @param Closure(mixed, ?\Exception): bool $callback return TRUE from this to attempt the call again.
      * @param bool $throwable whether to throw an exception the last attempt was left with.
      */
-    public static function when(Closure $callback, bool $throwable = true, ?Sapi $sapi = null): self
+    public static function when(Closure $callback, bool $throwable = true, ?Sapi $sapi = null): static
     {
-        return new self(new CallbackCondition($callback, $throwable), $sapi);
+        return new static(new CallbackCondition($callback, $throwable), $sapi);
     }
 
     /**

@@ -100,4 +100,16 @@ class CallbackConditionTest extends TestCase
             'the exception was swallowed, leaving nothing to return'
         );
     }
+
+    /**
+     * A subclass gets one of itself back, so that whatever it adds survives the call.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::when()
+     */
+    public function testSubclassGetsItsOwnTypeBack(): void
+    {
+        $backoff = new class(new CallbackCondition(fn (): bool => false)) extends ExponentialBackoff {};
+
+        self::assertInstanceOf($backoff::class, $backoff::when(fn (): bool => false));
+    }
 }
