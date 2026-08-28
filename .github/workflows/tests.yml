@@ -28,6 +28,11 @@ jobs:
       - name: Disable Swoole by default
         run: sudo phpdismod -s cli swoole
 
+      # phpdismod warns and carries on where it cannot do the job, which would leave the step below running with Swoole
+      # after all and nothing saying so -- the mirror of what "Verify Swoole is loadable" guards against further down.
+      - name: Verify Swoole is disabled
+        run: php -r 'if (extension_loaded("swoole")) { exit(1); }'
+
       - name: Install dependencies
         uses: nick-invision/retry@v4
         with:
