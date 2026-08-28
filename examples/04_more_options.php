@@ -38,7 +38,7 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class))
 $backoff = ExponentialBackoff::when(fn (): bool => !$helper->reachExpectedAttempts());
 
 $backoff
-    ->setInitialTimeout(1_000_000)  // Wait about 1 second before the first retry.
+    ->setInitialTimeout(1_000_000)  // Wait up to about 1 second before the first retry; jitter decides.
     ->setInitialTimeout(ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)

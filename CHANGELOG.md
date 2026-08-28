@@ -134,8 +134,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    $backoff->setType(ExponentialBackoff::TYPE_MICROSECONDS);   // 3.x — this was the default
    $backoff->setInitialTimeout(250_000);                       // 4.0 — still the default, so drop the call
    ```
-   Any other timeout works as well now: `setInitialTimeout(100_000)` waits about a tenth of a second before the first
-   retry. Method _getTimeoutSeconds()_ is gone; divide _getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
+   Any other timeout works as well now: `setInitialTimeout(100_000)` waits up to about a tenth of a second before the
+   first retry. Method _getTimeoutSeconds()_ is gone. Divide _getTimeoutMicroseconds()_ by 1000000 where seconds are
+   wanted, and pass _Jitter::None_ to get the whole timeout the way the old method gave it — with the default randomness
+   left on, a timeout of a second divides down to 0 more often than to 1:
+   ```php
+   ExponentialBackoff::getTimeoutSeconds($i, 1);                          // 3.x
+   intdiv(
+       ExponentialBackoff::getTimeoutMicroseconds($i, 1_000_000, jitter: \CrowdStar\Backoff\Jitter::None),
+       1_000_000
+   );                                                                     // 4.0
+   ```
 4. If you passed the second constructor parameter, pass an enum case instead of an integer:
    ```php
    new ExponentialBackoff($condition, 1);                                 // 3.x, SAPI_DEFAULT
