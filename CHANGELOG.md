@@ -7,6 +7,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [4.0.0] - 2026-08-28
 
+The list below is long, but nearly all of it is on API surface you had to opt into. An ordinary 3.x caller has a line or
+two to change, often none. Where you stand:
+
+**Nothing to change** if you are on PHP 8.1 or above, retry with one of the shipped conditions —
+_CrowdStar\Backoff\EmptyValueCondition_, _ExceptionBasedCondition_, _NullCondition_ — and never called _::setType()_,
+never passed the second constructor argument, and never called _::getTimeoutSeconds()_, _::getTimeoutMicroseconds()_,
+_::getCurrentAttempts()_ or _ExceptionBasedCondition::setException()_/_::getException()_. Your code runs unchanged.
+
+One behavior change reaches you anyway, and it needs no code: a delay is now randomized over its whole length rather
+than being lengthened by up to 10%, so the same run finishes sooner — 1.795 s against 0.465 s, measured with everything
+left at its default. Pass _Jitter::None_ to wait exactly as long as calculated, which is as close to 3.x as this gets.
+
+**A line or two** if you used one of the settings that moved. Every one has a direct equivalent; the step numbers are
+the ones under "Migration from 3.x" below.
+
+| If you called | Use instead | Step |
+|---|---|---|
+| _::setType(TYPE_SECONDS)_ | _::setInitialDelay(1_000_000)_ | 3 |
+| _::setType(TYPE_MICROSECONDS)_ | nothing — it was, and is, the default | 3 |
+| _new ExponentialBackoff($condition, 1)_ | _new ExponentialBackoff($condition, Mode::Blocking)_ | 4 |
+| _new ExponentialBackoff($condition, 2)_ | _new ExponentialBackoff($condition, Mode::Swoole)_, or nothing at all | 4 |
+| _::getTimeoutMicroseconds()_ | _::getDelayMicroseconds()_ | 3 |
+| _::getTimeoutSeconds()_ | _intdiv(::getDelayMicroseconds(…), 1_000_000)_ | 3 |
+| _::getCurrentAttempts()_ | nothing; drop the call | 6 |
+| _ExceptionBasedCondition::setException()_ | _::setExceptions()_, which takes one or more types | 5 |
+
+**Actual work**, and only in these two cases: a retry condition of your own has to rename _met()_ to _::shouldRetry()_
+and return the opposite (step 2), and a subclass that overrides _::run()_ has to declare `mixed ...$params` and a
+`mixed` return type. Both fail loudly rather than quietly — a leftover _met()_ is a fatal error naming the method, and a
+mismatched _::run()_ is rejected at declaration — so neither can slip into production unnoticed.
+
+Two further behavior changes, neither of them needing a code change: a single delay is capped at 30 seconds, which only
+affects runs that would have waited longer than that — with the default initial delay, nine attempts or more; and PHP
+8.0 and below are no longer supported, so stay on 3.x there. Against that, the _Fixed_ entries below are two silent
+correctness bugs: an instance built outside a coroutine used to block forever inside one, and two callers sharing an
+instance used to cut each other's runs short while reporting success.
+
 ### Changed
 
 * **BREAKING** PHP 8.1 or above is now required. PHP 8.0 and below are no longer supported; use version 3.x there.
