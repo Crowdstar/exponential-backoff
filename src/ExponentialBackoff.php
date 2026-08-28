@@ -25,8 +25,8 @@ use Swoole\Coroutine;
 /**
  * Class ExponentialBackoff
  *
- * This class uses an exponential back-off algorithm to calculate the timeout for the next request. Exponential
- * back-offs prevent overloading an unavailable service by doubling the timeout each iteration.
+ * This class uses an exponential back-off algorithm to calculate the delay for the next request. Exponential back-offs
+ * prevent overloading an unavailable service by doubling the delay each iteration.
  *
  * @phpstan-consistent-constructor so that self::when() can build one of whatever subclass it was called on.
  */
@@ -35,24 +35,32 @@ class ExponentialBackoff
     public const DEFAULT_MAX_ATTEMPTS = 4;
 
     /**
-     * The timeout before the first retry, in microseconds.
+     * The delay before the first retry, in microseconds.
      */
-    public const DEFAULT_INITIAL_TIMEOUT = 250_000;
+    public const DEFAULT_INITIAL_DELAY = 250_000;
 
     /**
-     * How long a single timeout may grow to, in microseconds. Doubling is not capped by nature, and an uncapped
+     * How long a single delay may grow to, in microseconds. Doubling is not capped by nature, and an uncapped
      * exponential grows past anything usable within a few attempts.
      */
-    public const DEFAULT_MAX_TIMEOUT = 30_000_000;
+    public const DEFAULT_MAX_DELAY = 30_000_000;
 
     /**
-     * How much randomness to mix into a timeout. Waiting anywhere between nothing and the full timeout spreads
-     * clients out best; see CrowdStar\Backoff\Jitter for the alternatives.
+     * How much randomness to mix into a delay. Waiting anywhere between nothing and the full delay spreads clients out
+     * best; see CrowdStar\Backoff\Jitter for the alternatives.
      */
     public const DEFAULT_JITTER = Jitter::Full;
 
-    protected int $initialTimeout = self::DEFAULT_INITIAL_TIMEOUT;
+    /**
+     * How long to wait before the first retry, in microseconds. Every delay after it doubles this one, up to
+     * $this->maxDelay.
+     */
+    protected int $initialDelay = self::DEFAULT_INITIAL_DELAY;
 
+    /**
+     * How much of every delay is left to chance. Applied to the capped delay, so no delay comes back longer than
+     * $this->maxDelay whichever case this holds.
+     */
     protected Jitter $jitter = self::DEFAULT_JITTER;
 
     /**
@@ -61,15 +69,35 @@ class ExponentialBackoff
      */
     protected ?Mode $mode;
 
+    /**
+     * How many attempts a run makes at most, counting the first one -- so a value of 1 does not retry at all, which is
+     * what $this->disable() sets.
+     */
     protected int $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
 
-    protected int $maxTimeout = self::DEFAULT_MAX_TIMEOUT;
+    /**
+     * The ceiling a single delay doubles up to, in microseconds. Bounds one wait; $this->maxElapsedTime bounds the run
+     * that the waits happen in.
+     */
+    protected int $maxDelay = self::DEFAULT_MAX_DELAY;
 
+    /**
+     * Wall-clock budget for a whole run, in microseconds, or NULL for no budget at all. Measured from the start of
+     * $this->run(); a wait that would not finish inside it is not started.
+     */
     protected ?int $maxElapsedTime = null;
 
-    /** @var ?Closure(int): void */
+    /**
+     * Waits instead of this class when set, whatever $this->getMode() would otherwise pick.
+     *
+     * @var ?Closure(int): void
+     */
     protected ?Closure $sleeper = null;
 
+    /**
+     * Decides whether what an attempt returned or threw is worth another one, and whether an exception the last attempt
+     * was left with is thrown out at the end of a run.
+     */
     protected AbstractRetryCondition $retryCondition;
 
     /**
@@ -146,24 +174,24 @@ class ExponentialBackoff
         return $this->setMaxAttempts(1);
     }
 
-    public function getInitialTimeout(): int
+    public function getInitialDelay(): int
     {
-        return $this->initialTimeout;
+        return $this->initialDelay;
     }
 
     /**
-     * Set how long to wait before the first retry; every timeout after that doubles it, up to the maximum.
+     * Set how long to wait before the first retry; every delay after that doubles it, up to the maximum.
      *
-     * @param int $initialTimeout the initial timeout in microseconds. Pass 1000000 for one second.
+     * @param int $initialDelay the initial delay in microseconds. Pass 1000000 for one second.
      * @throws Exception
      */
-    public function setInitialTimeout(int $initialTimeout): self
+    public function setInitialDelay(int $initialDelay): self
     {
-        if ($initialTimeout < 1) {
-            throw new Exception('initial timeout must be at least 1 microsecond');
+        if ($initialDelay < 1) {
+            throw new Exception('initial delay must be at least 1 microsecond');
         }
 
-        $this->initialTimeout = $initialTimeout;
+        $this->initialDelay = $initialDelay;
 
         return $this;
     }
@@ -219,7 +247,7 @@ class ExponentialBackoff
      *
      *   - waiting on an event loop this library knows nothing about -- ReactPHP, Amp, Revolt, a Fiber of your own;
      *   - tests, where a callback that records what it was given and returns makes a retrying test both instant and
-     *     able to assert the timeouts it was supposed to wait for.
+     *     able to assert the delays it was supposed to wait for.
      *
      * @param ?Closure(int): void $sleeper receives the wait in microseconds; NULL to wait here again.
      */
@@ -249,7 +277,8 @@ class ExponentialBackoff
 
     /**
      * Give the whole run a wall-clock budget: once the next wait would not finish inside it, the run stops and hands
-     * back whatever the last attempt produced.
+     * back whatever the last attempt produced. This bounds the run, not one wait -- see self::setMaxDelay() for that,
+     * and note that a budget smaller than the initial delay means no retry ever happens.
      *
      * Worth having even alongside a maximum number of attempts, because attempts say nothing about how long they
      * take, and it is the wall clock a caller is usually up against. Note that PHP's own max_execution_time will not
@@ -271,24 +300,25 @@ class ExponentialBackoff
         return $this;
     }
 
-    public function getMaxTimeout(): int
+    public function getMaxDelay(): int
     {
-        return $this->maxTimeout;
+        return $this->maxDelay;
     }
 
     /**
-     * Cap how long a single timeout may grow to.
+     * Cap how long a single delay may grow to. This bounds one wait, not the run -- see self::setMaxElapsedTime() for
+     * that. A delay below the cap is left alone, so an initial delay larger than the cap simply comes back capped.
      *
-     * @param int $maxTimeout the maximum timeout in microseconds.
+     * @param int $maxDelay the maximum delay in microseconds.
      * @throws Exception
      */
-    public function setMaxTimeout(int $maxTimeout): self
+    public function setMaxDelay(int $maxDelay): self
     {
-        if ($maxTimeout < 1) {
-            throw new Exception('maximum timeout must be at least 1 microsecond');
+        if ($maxDelay < 1) {
+            throw new Exception('maximum delay must be at least 1 microsecond');
         }
 
-        $this->maxTimeout = $maxTimeout;
+        $this->maxDelay = $maxDelay;
 
         return $this;
     }
@@ -306,42 +336,42 @@ class ExponentialBackoff
     }
 
     /**
-     * Get the next timeout in microseconds.
+     * Get the next delay in microseconds.
      *
-     * The timeout doubles on every iteration until it reaches $maxTimeout, where it stays. Iterations below 1 are
-     * treated as the first one. Randomness is applied to the capped timeout, so no timeout ever comes back longer than
-     * $maxTimeout, whichever Jitter is in use.
+     * The delay doubles on every iteration until it reaches $maxDelay, where it stays. Iterations below 1 are treated
+     * as the first one. Randomness is applied to the capped delay, so no delay ever comes back longer than $maxDelay,
+     * whichever Jitter is in use.
      */
-    public static function getTimeoutMicroseconds(
+    public static function getDelayMicroseconds(
         int $iteration,
-        int $initialTimeout = self::DEFAULT_INITIAL_TIMEOUT,
-        int $maxTimeout = self::DEFAULT_MAX_TIMEOUT,
+        int $initialDelay = self::DEFAULT_INITIAL_DELAY,
+        int $maxDelay = self::DEFAULT_MAX_DELAY,
         Jitter $jitter = self::DEFAULT_JITTER
     ): int {
         // Leave room for the arithmetic below, so that no input can make it overflow to a float.
-        $maxTimeout = min(max(0, $maxTimeout), intdiv(PHP_INT_MAX, 2));
-        $timeout    = min(max(0, $initialTimeout), $maxTimeout);
+        $maxDelay = min(max(0, $maxDelay), intdiv(PHP_INT_MAX, 2));
+        $delay    = min(max(0, $initialDelay), $maxDelay);
 
-        // Doubling in a loop that stops at the cap, instead of shifting by ($iteration - 1), keeps the timeout within
-        // integer range no matter how many attempts are configured. A timeout of nothing is left alone: doubling it
-        // would not move it, and looping until $iteration ran out could take years of that.
-        for ($i = 1; ($i < $iteration) && ($timeout > 0); $i++) {
-            if ($timeout > intdiv($maxTimeout, 2)) {
-                $timeout = $maxTimeout;
+        // Doubling in a loop that stops at the cap, instead of shifting by ($iteration - 1), keeps the delay within
+        // integer range no matter how many attempts are configured. A delay of nothing is left alone: doubling it would
+        // not move it, and looping until $iteration ran out could take years of that.
+        for ($i = 1; ($i < $iteration) && ($delay > 0); $i++) {
+            if ($delay > intdiv($maxDelay, 2)) {
+                $delay = $maxDelay;
                 break;
             }
 
-            $timeout *= 2;
+            $delay *= 2;
         }
 
         // We throw in some randomness here to try to prevent connections from colliding. It is applied to the capped
-        // timeout, the way https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ does it: capping
-        // afterwards would make every timeout past the cap exactly equal, putting the clients it spread out back in
-        // step with each other.
+        // delay, the way https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ does it: capping
+        // afterwards would make every delay past the cap exactly equal, putting the clients it spread out back in step
+        // with each other.
         return match ($jitter) {
-            Jitter::None  => $timeout,
-            Jitter::Full  => random_int(0, $timeout),
-            Jitter::Equal => intdiv($timeout, 2) + random_int(0, $timeout - intdiv($timeout, 2)),
+            Jitter::None  => $delay,
+            Jitter::Full  => random_int(0, $delay),
+            Jitter::Equal => intdiv($delay, 2) + random_int(0, $delay - intdiv($delay, 2)),
         };
     }
 
@@ -355,10 +385,10 @@ class ExponentialBackoff
             return false;
         }
 
-        $microSeconds = self::getTimeoutMicroseconds(
+        $microSeconds = self::getDelayMicroseconds(
             $attempt,
-            $this->getInitialTimeout(),
-            $this->getMaxTimeout(),
+            $this->getInitialDelay(),
+            $this->getMaxDelay(),
             $this->getJitter()
         );
 

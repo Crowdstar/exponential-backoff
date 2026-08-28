@@ -65,7 +65,7 @@ class CallbackConditionTest extends TestCase
         $helper  = (new Helper())->setExpectedFailedAttempts(2);
         $backoff = ExponentialBackoff::when(fn (mixed $result): bool => empty($result))
             ->setJitter(Jitter::None)
-            ->setMaxTimeout(1000)
+            ->setMaxDelay(1000)
         ;
 
         self::assertSame(

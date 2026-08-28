@@ -38,15 +38,25 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class))
 $backoff = ExponentialBackoff::when(fn (): bool => !$helper->reachExpectedAttempts());
 
 $backoff
-    ->setInitialTimeout(1_000_000)  // Wait up to about 1 second before the first retry; jitter decides.
-    ->setInitialTimeout(ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT)
+    ->setInitialDelay(1_000_000)  // Wait up to about 1 second before the first retry; jitter decides.
+    ->setInitialDelay(ExponentialBackoff::DEFAULT_INITIAL_DELAY)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
-    ->setMaxTimeout(5_000_000)
-    ->setMaxTimeout(ExponentialBackoff::DEFAULT_MAX_TIMEOUT)
-    ->setJitter(Jitter::None)
-    ->setJitter(Jitter::Equal)
-    ->setJitter(Jitter::Full)
+    ->setMaxDelay(5_000_000)  // Wait at most 5 seconds between two attempts.
+    ->setMaxDelay(ExponentialBackoff::DEFAULT_MAX_DELAY)
+    ->setMaxElapsedTime(2_000_000)  // Give the whole run 2 seconds, however many attempts fit inside it.
+    ->setMaxElapsedTime(null)       // No budget at all. The default.
+    ->setJitter(Jitter::None)   // Wait exactly as long as calculated; predictable, but no protection from collisions.
+    ->setJitter(Jitter::Equal)  // Wait at least half of the calculated delay, and randomly up to all of it.
+    ->setJitter(Jitter::Full)   // Wait anywhere between nothing and the calculated delay. The default.
+    // Hand the waiting over to a callback of your own: an event loop this library knows nothing about, or a recorder
+    // that makes a retrying test instant.
+    ->setSleeper(
+        function (int $microseconds): void {
+            usleep($microseconds);
+        }
+    )
+    ->setSleeper(null)  // Wait inside the library again. The default.
 ;
 
 /** @var string $result */

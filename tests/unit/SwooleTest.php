@@ -102,7 +102,7 @@ class SwooleTest extends TestCase
 
         $backoff = (new ExponentialBackoff(new EmptyValueCondition(), Mode::Swoole))
             ->setJitter(Jitter::None)
-            ->setMaxTimeout(1000)
+            ->setMaxDelay(1000)
         ;
         $helper = (new Helper())->setExpectedFailedAttempts(1);
 
@@ -115,8 +115,8 @@ class SwooleTest extends TestCase
     }
 
     /**
-     * Two backoffs waiting inside their own coroutines should overlap instead of queueing up, taking about as long as
-     * a single one. Each does one retry, so each waits for one initial timeout of 0.25 second.
+     * Two backoffs waiting inside their own coroutines should overlap instead of queueing up, taking about as long as a
+     * single one. Each does one retry, so each waits for one initial delay of 0.25 second.
      *
      * Swoole's runtime hooks make even a blocking usleep() yield to other coroutines. The hooks are switched off here
      * so that Coroutine::sleep() is the only thing that can make the two waits overlap, which is what makes the upper
@@ -163,7 +163,7 @@ class SwooleTest extends TestCase
         self::assertGreaterThanOrEqual(
             0.25 - self::TIMER_TOLERANCE,
             $elapsed,
-            'each coroutine waited for one initial timeout'
+            'each coroutine waited for one initial delay'
         );
         self::assertLessThanOrEqual(
             0.45,
@@ -173,7 +173,7 @@ class SwooleTest extends TestCase
     }
 
     /**
-     * Fetch a value back after a single failed attempt, waiting for one initial timeout of 0.25 second in between.
+     * Fetch a value back after a single failed attempt, waiting for one initial delay of 0.25 second in between.
      */
     protected static function fetchValueWithOneRetry(): mixed
     {

@@ -20,7 +20,7 @@ declare(strict_types=1);
 namespace CrowdStar\Backoff;
 
 /**
- * How much randomness to mix into a timeout, to keep clients that failed together from retrying together.
+ * How much randomness to mix into a delay, to keep clients that failed together from retrying together.
  *
  * @see https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/ where these are measured against
  *      each other. Backoff without randomness performs worst of all; Full spreads clients out the most.
@@ -28,20 +28,20 @@ namespace CrowdStar\Backoff;
 enum Jitter
 {
     /**
-     * Wait exactly as long as the timeout says. Predictable, and therefore handy in tests, but it leaves clients
-     * retrying in lockstep.
+     * Wait exactly as long as the delay says. Predictable, and therefore handy in tests, but it leaves clients retrying
+     * in lockstep.
      */
     case None;
 
     /**
-     * Wait anywhere between nothing and the full timeout. Spreads clients out the most, at the cost of retrying
-     * sooner than the timeout suggests: it makes the timeout a maximum rather than a target.
+     * Wait anywhere between nothing and the full delay. Spreads clients out the most, at the cost of retrying sooner
+     * than the delay suggests: it makes the delay a maximum rather than a target.
      */
     case Full;
 
     /**
-     * Wait at least half of the timeout, and randomly up to all of it. Half the spread of Full, in exchange for
-     * never retrying very soon after a failure.
+     * Wait at least half of the delay, and randomly up to all of it. Half the spread of Full, in exchange for never
+     * retrying very soon after a failure.
      */
     case Equal;
 }

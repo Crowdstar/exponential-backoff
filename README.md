@@ -20,8 +20,8 @@
 
 # Summary
 
-Exponential back-offs prevent overloading an unavailable service by doubling the timeout each iteration. This class uses
-an exponential back-off algorithm to calculate the timeout for the next request.
+Exponential back-offs prevent overloading an unavailable service by doubling the delay each iteration. This class uses
+an exponential back-off algorithm to calculate the delay for the next request.
 
 This library allows doing exponential backoff in non-blocking mode in [Swoole](https://github.com/swoole/swoole-src).
 Coroutines are detected before every wait, so one instance can be shared by coroutines and by ordinary code alike; pass
@@ -231,17 +231,17 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(LogicException::cl
 $backoff = ExponentialBackoff::when(fn (mixed $result, ?Exception $e): bool => ($e instanceof Exception));
 
 $backoff
-    ->setInitialTimeout(1_000_000)  // Wait up to about 1 second before the first retry; jitter decides.
-    ->setInitialTimeout(ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT)
+    ->setInitialDelay(1_000_000)  // Wait up to about 1 second before the first retry; jitter decides.
+    ->setInitialDelay(ExponentialBackoff::DEFAULT_INITIAL_DELAY)
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
-    ->setMaxTimeout(5_000_000)  // Wait at most 5 seconds between two attempts.
-    ->setMaxTimeout(ExponentialBackoff::DEFAULT_MAX_TIMEOUT)
+    ->setMaxDelay(5_000_000)  // Wait at most 5 seconds between two attempts.
+    ->setMaxDelay(ExponentialBackoff::DEFAULT_MAX_DELAY)
     ->setMaxElapsedTime(2_000_000)  // Give the whole run 2 seconds, however many attempts fit inside it.
     ->setMaxElapsedTime(null)       // No budget at all. The default.
-    ->setJitter(Jitter::Equal)  // Wait at least half of the calculated timeout, and randomly up to all of it.
+    ->setJitter(Jitter::Equal)  // Wait at least half of the calculated delay, and randomly up to all of it.
     ->setJitter(Jitter::None)   // Wait exactly as long as calculated; predictable, but no protection from collisions.
-    ->setJitter(Jitter::Full);  // Wait anywhere between nothing and the calculated timeout. The default.
+    ->setJitter(Jitter::Full);  // Wait anywhere between nothing and the calculated delay. The default.
 
 $result = $backoff->run(
     function () {
@@ -294,7 +294,7 @@ switched off.
 
 Method _\CrowdStar\Backoff\ExponentialBackoff::setSleeper()_ hands the waiting over to a callback of yours, which
 receives the wait in microseconds. Two things it is for: waiting on an event loop this library knows nothing about,
-and tests — a callback that records and returns makes a retrying test instant, and lets it assert the timeouts that
+and tests — a callback that records and returns makes a retrying test instant, and lets it assert the delays that
 would have been waited for:
 
 ```php

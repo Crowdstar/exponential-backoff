@@ -10,10 +10,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 * **BREAKING** PHP 8.1 or above is now required. PHP 8.0 and below are no longer supported; use version 3.x there.
-* **BREAKING** The unit of a timeout is no longer a choice: timeouts are always expressed in microseconds, and how long
-  to wait before the first retry is set with _ExponentialBackoff::setInitialTimeout()_ rather than picked from two
-  hardcoded values. This is what the removed _setType()_ was standing in for, and unlike it, any timeout can now be
-  expressed — a tenth of a second, or a second and a half.
+* **BREAKING** The unit of a delay is no longer a choice: delays are always expressed in microseconds, and how long to
+  wait before the first retry is set with _ExponentialBackoff::setInitialDelay()_ rather than picked from two hardcoded
+  values. This is what the removed _setType()_ was standing in for, and unlike it, any delay can now be expressed — a
+  tenth of a second, or a second and a half.
 * **BREAKING** The second parameter of _ExponentialBackoff::__construct()_ is now `?CrowdStar\Backoff\Mode` instead of
   an integer, and defaults to NULL (autodetect) instead of 0.
 * **BREAKING** Method _AbstractRetryCondition::met()_ is now _::shouldRetry()_, and it answers the opposite question:
@@ -23,24 +23,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
   Renaming and inverting together is deliberate: because _met()_ is gone, a condition that still implements it fails to
   declare itself at all — a fatal error naming the method — rather than quietly retrying whenever it used to stop.
-* **BREAKING** A single timeout is now capped at 30 seconds by default, configurable with
-  _ExponentialBackoff::setMaxTimeout()_. Timeouts double until they reach the cap and stay there, where before they
-  doubled without limit. With the default of 4 attempts the longest timeout is 1 second, so the default behavior is
-  unchanged; runs configured with more attempts than that now wait considerably less.
-* **BREAKING** Method _ExponentialBackoff::getTimeoutMicroseconds()_ takes a maximum timeout as its third parameter and
-  a _CrowdStar\Backoff\Jitter_ case as its fourth. Pass them explicitly to opt out of the default cap and of the
-  default randomness.
-* **BREAKING** A timeout is now randomized over its whole length instead of being lengthened by up to 10%, and the
-  amount of randomness is configurable with _ExponentialBackoff::setJitter()_. Waits are therefore shorter on average
-  and no longer predictable: a timeout has become the longest a wait may take rather than the shortest. Clients that
-  failed together are what this spreads out; the measurements behind it are in the AWS article linked from enum
+* **BREAKING** A single delay is now capped at 30 seconds by default, configurable with
+  _ExponentialBackoff::setMaxDelay()_. Delays double until they reach the cap and stay there, where before they doubled
+  without limit. With the default of 4 attempts the longest delay is 1 second, so the default behavior is unchanged;
+  runs configured with more attempts than that now wait considerably less.
+* **BREAKING** Method _ExponentialBackoff::getTimeoutMicroseconds()_ is now _::getDelayMicroseconds()_, it takes a
+  maximum delay as its third parameter and a _CrowdStar\Backoff\Jitter_ case as its fourth, and its second and third
+  parameters are named `$initialDelay` and `$maxDelay`, which matters only where they are passed as named arguments.
+  Pass the third and fourth explicitly to opt out of the default cap and of the default randomness.
+* **BREAKING** A delay is now randomized over its whole length instead of being lengthened by up to 10%, and the amount
+  of randomness is configurable with _ExponentialBackoff::setJitter()_. Waits are therefore shorter on average and no
+  longer predictable: a delay has become the longest a wait may take rather than the shortest. Clients that failed
+  together are what this spreads out; the measurements behind it are in the AWS article linked from enum
   _CrowdStar\Backoff\Jitter_. Pass _Jitter::None_ for the previous predictability, or _Jitter::Equal_ to keep at least
-  half of every timeout.
+  half of every delay.
 * **BREAKING** Method _ExponentialBackoff::run()_ now declares `mixed ...$params` and a `mixed` return type. Calling it
   is unchanged; a subclass that overrides _::run()_ has to declare both, or PHP rejects the declaration outright.
-* The randomness is no longer rounded away for timeouts of about a second. Where a seconds-mode timeout used to be
-  rounded down to whole seconds after being randomized — which for a one-second timeout discarded the randomness
-  entirely, leaving every client to retry in lockstep — nothing rounds any more.
+* The randomness is no longer rounded away for delays of about a second. Where a seconds-mode delay used to be rounded
+  down to whole seconds after being randomized — which for a one-second delay discarded the randomness entirely, leaving
+  every client to retry in lockstep — nothing rounds any more.
 
 ### Added
 
@@ -49,8 +50,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   opts out of non-blocking waits altogether, where _Mode::Swoole_ and NULL both mean "wait non-blockingly where a
   coroutine is running". _Mode::Sleeper_ is only ever reported by _::getMode()_, for when a callback set with
   _::setSleeper()_ is doing the waiting; the constructor rejects it, since no case can stand in for a callback.
-* Methods _ExponentialBackoff::setInitialTimeout()_, _::getInitialTimeout()_, _::setMaxTimeout()_ and
-  _::getMaxTimeout()_, plus constants _ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT_ and _::DEFAULT_MAX_TIMEOUT_.
+* Methods _ExponentialBackoff::setInitialDelay()_, _::getInitialDelay()_, _::setMaxDelay()_ and _::getMaxDelay()_, plus
+  constants _ExponentialBackoff::DEFAULT_INITIAL_DELAY_ and _::DEFAULT_MAX_DELAY_. A delay is what one wait between two
+  attempts lasts, and _::setMaxDelay()_ caps a single one of them; the wall-clock budget for a whole run is a separate
+  setting, _::setMaxElapsedTime()_.
 * Method _ExponentialBackoff::getMode()_, telling which mode a wait would happen in right now.
 * Enum _CrowdStar\Backoff\Jitter_ with cases _None_, _Full_ and _Equal_, along with methods
   _ExponentialBackoff::setJitter()_ and _::getJitter()_ and constant _ExponentialBackoff::DEFAULT_JITTER_.
@@ -66,8 +69,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 * Method _ExponentialBackoff::setSleeper()_, handing the waiting over to a callback that receives the wait in
   microseconds. It takes precedence over both other modes, which _::getMode()_ reports as _Mode::Sleeper_, and is for
   waiting on an event loop this library knows nothing about — ReactPHP, Amp, Revolt, a Fiber of your own — or for tests,
-  where a callback that records and returns makes a retrying test instant and lets it assert the timeouts that would
-  have been waited for.
+  where a callback that records and returns makes a retrying test instant and lets it assert the delays that would have
+  been waited for.
 * Methods _ExponentialBackoff::setMaxElapsedTime()_ and _::getMaxElapsedTime()_, giving a whole run a wall-clock budget
   in microseconds on top of its maximum number of attempts. Once the next wait would not finish inside the budget it is
   not started at all, and the run hands back whatever the last attempt produced. Worth having because attempts say
@@ -86,20 +89,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   succeeded. The same went for concurrent Swoole coroutines sharing an instance, which is how a service tends to be
   wired up there — and which the 3.0.11 note about reusing an instance did not warn about, being true only for runs
   happening one after another.
-* Timeouts no longer overflow. Doubling an uncapped timeout left the integer range from the 46th attempt on, where
-  _ExponentialBackoff::getTimeoutMicroseconds()_ threw a _TypeError_, and from the 65th attempt on the bit shift it
-  used returned 0, silently disabling the backoff altogether. Both were reachable through _::setMaxAttempts()_, and
-  neither could be caught by _::run()_, which handles exceptions rather than errors. Timeouts now stop at the maximum
-  instead of growing past what an integer holds, and a non-positive iteration is treated as the first one rather than
-  raising an _ArithmeticError_.
+* Delays no longer overflow. Doubling an uncapped delay left the integer range from the 46th attempt on, where
+  _ExponentialBackoff::getDelayMicroseconds()_ threw a _TypeError_, and from the 65th attempt on the bit shift it used
+  returned 0, silently disabling the backoff altogether. Both were reachable through _::setMaxAttempts()_, and neither
+  could be caught by _::run()_, which handles exceptions rather than errors. Delays now stop at the maximum instead of
+  growing past what an integer holds, and a non-positive iteration is treated as the first one rather than raising an
+  _ArithmeticError_.
 
 ### Removed
 
 * **BREAKING** Constants _ExponentialBackoff::TYPE_MICROSECONDS_ and _ExponentialBackoff::TYPE_SECONDS_ along with
-  methods _::setType()_ and _::getType()_. Use _::setInitialTimeout()_ instead.
-* **BREAKING** Method _ExponentialBackoff::getTimeoutSeconds()_. It rounded timeouts down to whole seconds, which
+  methods _::setType()_ and _::getType()_. Use _::setInitialDelay()_ instead.
+* **BREAKING** Method _ExponentialBackoff::getTimeoutSeconds()_. It rounded delays down to whole seconds, which
   discarded the randomness of anything under ten seconds, and it existed only to serve the removed seconds mode. Divide
-  the result of _::getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
+  the result of _::getDelayMicroseconds()_ by 1000000 where seconds are wanted.
 * **BREAKING** Method _ExponentialBackoff::getCurrentAttempts()_, deprecated since 3.x. There is no replacement: the
   attempt counter belongs to a single run and is no longer kept on the object.
 * **BREAKING** Methods _ExceptionBasedCondition::getException()_ and _ExceptionBasedCondition::setException()_,
@@ -126,22 +129,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    Conditions written around exceptions usually get shorter: `return (empty($e) || (!($e instanceof Exception)));`
    becomes `return ($e instanceof Exception);`. A condition left implementing _met()_ raises a fatal error saying
    _shouldRetry()_ is not implemented, so nothing silently starts retrying where it used to stop.
-3. Replace the type constants with an initial timeout in microseconds:
+3. Replace the type constants with an initial delay in microseconds:
    ```php
    $backoff->setType(ExponentialBackoff::TYPE_SECONDS);        // 3.x
-   $backoff->setInitialTimeout(1_000_000);                     // 4.0
+   $backoff->setInitialDelay(1_000_000);                       // 4.0
 
    $backoff->setType(ExponentialBackoff::TYPE_MICROSECONDS);   // 3.x — this was the default
-   $backoff->setInitialTimeout(250_000);                       // 4.0 — still the default, so drop the call
+   $backoff->setInitialDelay(250_000);                         // 4.0 — still the default, so drop the call
    ```
-   Any other timeout works as well now: `setInitialTimeout(100_000)` waits up to about a tenth of a second before the
-   first retry. Method _getTimeoutSeconds()_ is gone. Divide _getTimeoutMicroseconds()_ by 1000000 where seconds are
-   wanted, and pass _Jitter::None_ to get the whole timeout the way the old method gave it — with the default randomness
-   left on, a timeout of a second divides down to 0 more often than to 1:
+   Any other delay works as well now: `setInitialDelay(100_000)` waits up to about a tenth of a second before the
+   first retry. Method _getTimeoutSeconds()_ is gone, and _getTimeoutMicroseconds()_ is now _getDelayMicroseconds()_:
+   divide its result by 1000000 where seconds are wanted, and pass _Jitter::None_ to get the whole delay the way the old
+   method gave it — with the default randomness left on, a delay of a second divides down to 0 more often than to 1:
    ```php
    ExponentialBackoff::getTimeoutSeconds($i, 1);                          // 3.x
    intdiv(
-       ExponentialBackoff::getTimeoutMicroseconds($i, 1_000_000, jitter: \CrowdStar\Backoff\Jitter::None),
+       ExponentialBackoff::getDelayMicroseconds($i, 1_000_000, jitter: \CrowdStar\Backoff\Jitter::None),
        1_000_000
    );                                                                     // 4.0
    ```
