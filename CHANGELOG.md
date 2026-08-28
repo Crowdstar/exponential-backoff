@@ -211,6 +211,53 @@ instance used to cut each other's runs short while reporting success.
 6. Drop any call to _ExponentialBackoff::getCurrentAttempts()_. There is no replacement; the attempt counter is
    internal.
 
+## [3.0.13] - 2026-08-28
+
+Two fixes backported from 4.0, and a deprecation notice on everything 4.0 renames or removes. Nothing is removed here and
+no signature changes, so there is nothing to do on upgrading; the 3.x series stays supported for PHP 7.1 and above.
+
+### Fixed
+
+* Timeouts no longer overflow. Doubling was an uncapped bit shift, which broke down in three ways once enough attempts
+  were configured: from the 46th attempt on the timeout left the integer range and
+  _ExponentialBackoff::getTimeoutMicroseconds()_ threw a _TypeError_; from the 65th on, shifting by more than the width
+  of an integer returned 0 and silently disabled the backoff; and a non-positive iteration raised an _ArithmeticError_.
+  All three were reachable through _::setMaxAttempts()_, and none could be caught by _::run()_, which handles exceptions
+  rather than errors. Two further ways in through the static methods themselves: a negative initial timeout reached
+  `random_int(0, -n)` and raised an _Error_, and an initial timeout large enough that converting it to microseconds
+  overflowed made _::getTimeoutSeconds()_ hand a float to an `int` parameter. Timeouts now stop below what an integer
+  holds instead of growing past it, and an iteration below the first is treated as the first one. Every timeout that
+  worked before is unchanged: verified against the old shift across 356 combinations, covering each iteration the shift
+  handled correctly for seven different initial timeouts, with no differences. Unlike 4.0, this series keeps uncapped
+  doubling and randomness of up to 10%.
+* Whether to wait in non-blocking mode is now decided per wait instead of once at construction. An instance built
+  outside a coroutine — a service put together during bootstrap, say — used to block for the rest of its life even once
+  coroutines were using it, which is the way it is normally wired up in a Swoole application. Asking for a mode outright
+  still skips the detection entirely.
+
+### Deprecated
+
+Nothing listed here goes away in 3.x. It is marked so that a 4.0 upgrade is a matter of following the notices rather
+than reading a diff; see the new _Upgrading to 4.0_ section of `README.md` for the full table.
+
+* Method _AbstractRetryCondition::met()_, which 4.0 renames to _::shouldRetry()_ **and inverts**: TRUE means "try again"
+  there, where here it means "stop". The signatures are compatible either way round, so a condition class carried across
+  with nothing changed but the method name will retry in exactly the cases it used to stop in, with nothing to warn you.
+  Negate the body along with the rename.
+* Constants _ExponentialBackoff::TYPE_MICROSECONDS_ and _ExponentialBackoff::TYPE_SECONDS_, along with methods
+  _::getType()_ and _::setType()_. 4.0 measures every delay in microseconds; set the length directly with
+  _::setInitialDelay()_, for which `setType(TYPE_SECONDS)` becomes `setInitialDelay(1000000)`.
+* Method _ExponentialBackoff::getTimeoutMicroseconds()_, renamed to _::getDelayMicroseconds()_ in 4.0, where it takes
+  the cap and the kind of randomness as two further parameters.
+* Method _ExponentialBackoff::getTimeoutSeconds()_, which 4.0 removes. Divide the result of _::getDelayMicroseconds()_
+  by 1000000 where seconds are wanted, passing _Jitter::None_ to get a fixed value rather than a randomized one.
+* The second parameter of _ExponentialBackoff::__construct()_, which becomes a nullable _CrowdStar\Backoff\Mode_ in 4.0:
+  _Mode::Blocking_ for the default SAPI, _Mode::Swoole_ for the Swoole one. Passing nothing keeps meaning the same thing
+  in both.
+* Methods _ExponentialBackoff::getCurrentAttempts()_, _ExceptionBasedCondition::getException()_ and
+  _ExceptionBasedCondition::setException()_ were already deprecated; their notices now name 4.0 as the version that
+  removes them, and point at the replacement where there is one.
+
 ## [3.0.12] - 2026-04-19
 
 ### Changed
@@ -321,6 +368,7 @@ instance used to cut each other's runs short while reporting success.
 
 [4.0.1]: https://github.com/Crowdstar/exponential-backoff/releases/tag/4.0.1
 [4.0.0]: https://github.com/Crowdstar/exponential-backoff/releases/tag/4.0.0
+[3.0.13]: https://github.com/Crowdstar/exponential-backoff/releases/tag/3.0.13
 [3.0.12]: https://github.com/Crowdstar/exponential-backoff/releases/tag/3.0.12
 [3.0.11]: https://github.com/Crowdstar/exponential-backoff/releases/tag/3.0.11
 [3.0.10]: https://github.com/Crowdstar/exponential-backoff/releases/tag/3.0.10
