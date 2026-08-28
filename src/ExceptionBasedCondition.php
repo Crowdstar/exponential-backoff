@@ -26,6 +26,10 @@ use Throwable;
 /**
  * Class ExceptionBasedCondition
  * Do a retry if specified types of exceptions are thrown out.
+ *
+ * Only exceptions ever get here, because that is all ExponentialBackoff::run() catches. Error and its subclasses are
+ * rejected outright when listed; Throwable and interfaces only Error implements are accepted, but nothing can ever
+ * match them: an Error ends a run whatever this condition is set up to retry.
  */
 class ExceptionBasedCondition extends AbstractRetryCondition
 {

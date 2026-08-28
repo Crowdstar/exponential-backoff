@@ -59,7 +59,9 @@ This piece of code will try a few more times (by default 4) until either we get 
 maximum numbers of retries.
 
 NOTE: Internal PHP errors (class [Error](https://www.php.net/error)) won't trigger exponential backoff. They should be
-fixed manually.
+fixed manually. Nothing you list can change that: only exceptions ever reach a retry condition, so a _TypeError_ ends a
+run however the condition is set up. _Error_ and its subclasses are rejected outright when listed; _Throwable_ is
+accepted, but no error ever reaches the condition for it to match.
 
 ```php
 <?php
