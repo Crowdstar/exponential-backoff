@@ -46,11 +46,23 @@ class ExponentialBackoff
     protected $type = self::TYPE_MICROSECONDS;
 
     /**
+     * The mode resolved when this instance was built. Kept for backward compatibility only: waits no longer read it,
+     * because whether a Swoole coroutine is there to yield to is a question about the moment of the wait rather than
+     * about the moment of construction.
+     *
      * @var int
+     * @see ExponentialBackoff::getEffectiveSapi()
      * @see ExponentialBackoff::SAPI_DEFAULT
      * @see ExponentialBackoff::SAPI_SWOOLE
      */
     protected $sapi;
+
+    /**
+     * What the caller asked for, rather than what was made of it: 0 when the mode is left to be worked out per wait.
+     *
+     * @var int
+     */
+    protected $sapiRequested = 0;
 
     /**
      * @var int
@@ -84,6 +96,8 @@ class ExponentialBackoff
         } else {
             $this->sapi = self::SAPI_DEFAULT;
         }
+
+        $this->sapiRequested = $sapi;
 
         $this->setRetryCondition($retryCondition);
     }
@@ -228,6 +242,26 @@ class ExponentialBackoff
     }
 
     /**
+     * Which mode a wait would happen in right now: what the caller asked for when it asked for anything, otherwise
+     * SAPI_SWOOLE inside a Swoole coroutine and SAPI_DEFAULT anywhere else.
+     *
+     * Worked out per wait rather than once in the constructor, because the same instance may well be used both inside
+     * and outside coroutines -- a service built during bootstrap and then shared with coroutines, which is how a Swoole
+     * application is usually wired up. Settled at construction, such an instance blocked for the rest of its life.
+     *
+     * Note that Coroutine::getPcid() answers FALSE only outside a coroutine; inside the outermost one it answers -1,
+     * having no parent to name.
+     */
+    protected function getEffectiveSapi(): int
+    {
+        if ($this->sapiRequested !== 0) {
+            return $this->sapiRequested;
+        }
+
+        return (extension_loaded('swoole') && (Coroutine::getPcid() !== false)) ? self::SAPI_SWOOLE : self::SAPI_DEFAULT;
+    }
+
+    /**
      * @param mixed $result
      * @throws Exception
      */
@@ -251,10 +285,14 @@ class ExponentialBackoff
      */
     protected function sleep(): self
     {
+        // Asked per wait rather than read off the instance, so that an instance shared between coroutines and plain
+        // code waits the right way in each.
+        $sapi = $this->getEffectiveSapi();
+
         switch ($this->getType()) {
             case self::TYPE_MICROSECONDS:
                 $microSeconds = self::getTimeoutMicroseconds($this->currentAttempts);
-                switch ($this->sapi) {
+                switch ($sapi) {
                     case self::SAPI_SWOOLE:
                         // Minimum execution delay in Swoole is 1ms.
                         Coroutine::sleep(max($microSeconds / 1000000, 0.001));
@@ -266,7 +304,7 @@ class ExponentialBackoff
                 break;
             case self::TYPE_SECONDS:
                 $seconds = self::getTimeoutSeconds($this->currentAttempts);
-                switch ($this->sapi) {
+                switch ($sapi) {
                     case self::SAPI_SWOOLE:
                         // Minimum execution delay in Swoole is 1ms.
                         Coroutine::sleep(max($seconds, 0.001));

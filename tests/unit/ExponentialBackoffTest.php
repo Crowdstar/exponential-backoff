@@ -24,6 +24,7 @@ use CrowdStar\Backoff\AbstractRetryCondition;
 use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\NullCondition;
 use Exception;
 use PHPUnit\Framework\TestCase;
 
@@ -481,5 +482,59 @@ class ExponentialBackoffTest extends TestCase
             [0, 0, 1, 0],
             [0, 0, 1, -1],
         ];
+    }
+
+    /**
+     * Which primitive a wait uses is worked out per wait, not fixed when the instance was built: an instance built
+     * outside a coroutine used to block for the rest of its life, which is exactly how a Swoole application shares one.
+     * Asking for a mode outright still wins.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getEffectiveSapi
+     */
+    public function testTheWaitingModeIsDecidedPerWait(): void
+    {
+        $backoff = new class(new NullCondition()) extends ExponentialBackoff {
+            // The two modes are protected constants, so a subclass is how a caller gets at them at all.
+            public const MODE_DEFAULT = self::SAPI_DEFAULT;
+
+            public const MODE_SWOOLE  = self::SAPI_SWOOLE;
+
+            public function getSapiAsked(): int
+            {
+                return $this->sapiRequested;
+            }
+
+            public function getSapiInUse(): int
+            {
+                return $this->getEffectiveSapi();
+            }
+
+            public function getSapiAtConstruction(): int
+            {
+                return $this->sapi;
+            }
+        };
+
+        self::assertSame(0, $backoff->getSapiAsked(), 'nothing was asked for, so the mode is left to each wait');
+        self::assertSame(
+            $backoff->getSapiAtConstruction(),
+            $backoff->getSapiInUse(),
+            'with no coroutine started or left since construction, both ways of asking agree'
+        );
+
+        foreach ([$backoff::MODE_DEFAULT, $backoff::MODE_SWOOLE] as $sapi) {
+            $forced = new class(new NullCondition(), $sapi) extends ExponentialBackoff {
+                public function getSapiInUse(): int
+                {
+                    return $this->getEffectiveSapi();
+                }
+            };
+
+            self::assertSame(
+                $sapi,
+                $forced->getSapiInUse(),
+                "mode {$sapi} was asked for outright, so no detection should override it"
+            );
+        }
     }
 }
