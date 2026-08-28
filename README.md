@@ -12,6 +12,7 @@
      * [3. Retry When Customized Condition Met](#3-retry-when-customized-condition-met)
      * [4. More Options When Doing Exponential Backoff](#4-more-options-when-doing-exponential-backoff)
      * [5. To Disable Exponential Backoff Temporarily](#5-to-disable-exponential-backoff-temporarily)
+* [Upgrading to 4.0](#upgrading-to-40)
 * [Sample Scripts](#sample-scripts)
 
 # Summary
@@ -170,8 +171,8 @@ $backoff = new ExponentialBackoff(
 );
 
 $backoff
-    ->setType(ExponentialBackoff::TYPE_SECONDS)
-    ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
+    ->setType(ExponentialBackoff::TYPE_SECONDS)      // Deprecated; see "Upgrading to 4.0" below.
+    ->setType(ExponentialBackoff::TYPE_MICROSECONDS) // Deprecated; see "Upgrading to 4.0" below.
     ->setMaxAttempts(3)
     ->setMaxAttempts(4);
 
@@ -220,6 +221,49 @@ $result = (new ExponentialBackoff(new NullCondition()))
 ```
 
 All these 3 code piece work the same, having return value of method call _MyClass::fetchData()_ assigned to variable _$result_.
+
+# Upgrading to 4.0
+
+The 3.x series stays supported for PHP 7.1 and up, and nothing listed here goes away in it. Version 4.0 requires PHP 8.1
+and renames or removes all of it, so what follows is what to expect and what to move to. Everything marked
+_@deprecated_ in 3.x appears here.
+
+| 3.x | 4.0 |
+| --- | --- |
+| `AbstractRetryCondition::met()` | Renamed to `shouldRetry()`, **and its meaning is inverted**. See the warning below. |
+| `ExponentialBackoff::TYPE_MICROSECONDS`, `::TYPE_SECONDS` | Gone. Every delay is in microseconds; set the length with `setInitialDelay()`. |
+| `ExponentialBackoff::getType()`, `::setType()` | Gone. `setType(TYPE_SECONDS)` becomes `setInitialDelay(1_000_000)`. |
+| `ExponentialBackoff::getTimeoutMicroseconds()` | Renamed to `getDelayMicroseconds()`, with the cap and the kind of randomness as two further parameters. |
+| `ExponentialBackoff::getTimeoutSeconds()` | Gone. Pass microseconds to `getDelayMicroseconds()`, and divide by 1000000 if you want seconds. Pass `Jitter::None` to get the old fixed value rather than a randomized one. |
+| `ExponentialBackoff::getCurrentAttempts()` | Gone, with no replacement: the attempt counter is local to a run there, so one instance can serve several callers at once. Count in your own closure if you need the number. |
+| `ExponentialBackoff::__construct()`'s second parameter | Takes a `CrowdStar\Backoff\Mode` instead of an integer: `Mode::Blocking` for `SAPI_DEFAULT`, `Mode::Swoole` for `SAPI_SWOOLE`. Passing nothing still means "work it out". |
+| `ExceptionBasedCondition::getException()`, `::setException()` | Gone. Use `getExceptions()` and `setExceptions()`. |
+| protected `SAPI_DEFAULT`, `SAPI_SWOOLE`, `$type`, `$sapi`, `$currentAttempts` | Gone or replaced. `ExponentialBackoff::getMode()` reports the mode a wait would happen in. |
+| protected `increaseCurrentAttempts()`, `retry()`, `sleep()` | Removed or resignatured. Only relevant if you subclass. |
+
+**The one change that can pass review and still be wrong:** `met()` returns TRUE to mean _stop_, while 4.0's
+`shouldRetry()` returns TRUE to mean _try again_. The signatures are compatible either way round, so a condition class
+carried across with nothing changed but the method name will retry in exactly the cases it used to stop in. Negate the
+body along with the rename:
+
+```php
+<?php
+// 3.x
+public function met($result, ?Exception $e): bool
+{
+    return !empty($result); // TRUE: got something, stop.
+}
+
+// 4.0
+public function shouldRetry(mixed $result, ?Exception $e): bool
+{
+    return empty($result);  // TRUE: got nothing, go again.
+}
+?>
+```
+
+Note also that 4.0 caps a single delay at 30 seconds by default and randomizes it over its whole length instead of by up
+to 10%, both configurable. The 3.x series keeps its own behaviour: uncapped doubling, randomized by up to 10% on top.
 
 # Sample Scripts
 

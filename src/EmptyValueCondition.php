@@ -29,6 +29,9 @@ class EmptyValueCondition extends AbstractRetryCondition
 {
     /**
      * {@inheritdoc}
+     *
+     * @deprecated Renamed to shouldRetry() in 4.0, with its meaning inverted.
+     * @see AbstractRetryCondition::met()
      */
     public function met($result, ?Exception $e): bool
     {

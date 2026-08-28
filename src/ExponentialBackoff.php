@@ -32,16 +32,31 @@ class ExponentialBackoff
 {
     public const DEFAULT_MAX_ATTEMPTS = 4;
 
+    /**
+     * @deprecated Removed in 4.0, where every delay is in microseconds. Use ExponentialBackoff::setInitialDelay().
+     * @see ExponentialBackoff::setType()
+     */
     public const TYPE_MICROSECONDS = 1;
 
+    /**
+     * @deprecated Removed in 4.0, where every delay is in microseconds. Use ExponentialBackoff::setInitialDelay().
+     * @see ExponentialBackoff::setType()
+     */
     public const TYPE_SECONDS      = 2;
 
+    /**
+     * @deprecated Replaced in 4.0 by case Mode::Blocking of enum CrowdStar\Backoff\Mode.
+     */
     protected const SAPI_DEFAULT = 1;
 
+    /**
+     * @deprecated Replaced in 4.0 by case Mode::Swoole of enum CrowdStar\Backoff\Mode.
+     */
     protected const SAPI_SWOOLE  = 2;
 
     /**
      * @var int
+     * @deprecated Removed in 4.0 along with the two TYPE_* constants it holds.
      */
     protected $type = self::TYPE_MICROSECONDS;
 
@@ -51,6 +66,8 @@ class ExponentialBackoff
      * about the moment of construction.
      *
      * @var int
+     * @deprecated Reports the mode as it was at construction time, which a wait may well not happen in. Removed in
+     * 4.0, where ExponentialBackoff::getMode() answers the question per wait.
      * @see ExponentialBackoff::getEffectiveSapi()
      * @see ExponentialBackoff::SAPI_DEFAULT
      * @see ExponentialBackoff::SAPI_SWOOLE
@@ -61,6 +78,7 @@ class ExponentialBackoff
      * What the caller asked for, rather than what was made of it: 0 when the mode is left to be worked out per wait.
      *
      * @var int
+     * @deprecated Removed in 4.0, where protected property $mode holds the requested mode.
      */
     protected $sapiRequested = 0;
 
@@ -71,8 +89,8 @@ class ExponentialBackoff
 
     /**
      * @var int
-     *
-     * @todo Drop the initial value in version 4.0 (once we have method $this->>getCurrentAttempts() removed).
+     * @deprecated Removed in 4.0, where the attempt counter is local to a run instead of living on the instance.
+     * @see ExponentialBackoff::getCurrentAttempts()
      */
     protected $currentAttempts = 1;
 
@@ -82,6 +100,10 @@ class ExponentialBackoff
     protected $retryCondition;
 
     /**
+     * The second parameter becomes a nullable CrowdStar\Backoff\Mode in 4.0, so an integer passed here has to become
+     * Mode::Blocking or Mode::Swoole on the way over. Note that passing nothing keeps meaning the same thing in both:
+     * work the mode out rather than fix it.
+     *
      * @throws Exception
      */
     public function __construct(AbstractRetryCondition $retryCondition, int $sapi = 0)
@@ -103,6 +125,10 @@ class ExponentialBackoff
     }
 
     /**
+     * Note that the attempt counter lives on the instance here, so one instance cannot be run by two callers at once
+     * -- concurrent coroutines, or a closure that calls run() again -- without them counting over each other. Give
+     * each caller its own instance. 4.0 keeps the counter local to a run and has no such limitation.
+     *
      * @return mixed
      * @throws Exception
      */
@@ -136,11 +162,19 @@ class ExponentialBackoff
         return $this->setMaxAttempts(1);
     }
 
+    /**
+     * @deprecated Removed in 4.0, where every delay is in microseconds.
+     */
     public function getType(): int
     {
         return $this->type;
     }
 
+    /**
+     * @deprecated Removed in 4.0, where every delay is in microseconds. Instead of switching to TYPE_SECONDS, set the
+     * length you want directly with ExponentialBackoff::setInitialDelay() -- setType(TYPE_SECONDS) is the same as an
+     * initial delay of 1000000 microseconds.
+     */
     public function setType(int $type): self
     {
         $this->type = $type;
@@ -168,7 +202,9 @@ class ExponentialBackoff
     }
 
     /**
-     * @deprecated Will be removed in 4.0.
+     * @deprecated Removed in 4.0, which has no replacement: the attempt counter is local to a run there, so that one
+     * instance can be run by several callers at once. Count the attempts in the closure you hand to
+     * ExponentialBackoff::run() if you need the number.
      */
     public function getCurrentAttempts(): int
     {
@@ -189,6 +225,9 @@ class ExponentialBackoff
 
     /**
      * Get the next timeout in seconds.
+     *
+     * @deprecated Removed in 4.0, where every delay is in microseconds. Pass the seconds you want as microseconds to
+     * ExponentialBackoff::getDelayMicroseconds() instead, and divide what comes back by 1000000 if you need seconds.
      */
     public static function getTimeoutSeconds(int $iteration, int $initialTimeout = 1): int
     {
@@ -204,6 +243,9 @@ class ExponentialBackoff
      *
      * The timeout doubles on every iteration, up to a ceiling that leaves room for the randomness added afterwards.
      * Iterations below 1 are treated as the first one, and a timeout of nothing stays nothing.
+     *
+     * @deprecated Renamed to ExponentialBackoff::getDelayMicroseconds() in 4.0, which takes the cap and the kind of
+     * randomness as two further parameters.
      */
     public static function getTimeoutMicroseconds(int $iteration, int $initialTimeout = 250000): int
     {
@@ -234,6 +276,9 @@ class ExponentialBackoff
         return $timeout + random_int(0, intdiv($timeout, 10));
     }
 
+    /**
+     * @deprecated Removed in 4.0 along with the attempt counter it increments.
+     */
     protected function increaseCurrentAttempts(): self
     {
         $this->currentAttempts++;
@@ -251,6 +296,8 @@ class ExponentialBackoff
      *
      * Note that Coroutine::getPcid() answers FALSE only outside a coroutine; inside the outermost one it answers -1,
      * having no parent to name.
+     *
+     * @deprecated Renamed to ExponentialBackoff::getMode() in 4.0, and public there.
      */
     protected function getEffectiveSapi(): int
     {
@@ -264,6 +311,8 @@ class ExponentialBackoff
     /**
      * @param mixed $result
      * @throws Exception
+     * @deprecated Kept, but its signature changes in 4.0: it takes the attempt number and the start of the run as two
+     * further parameters, and asks the retry condition the opposite question.
      */
     protected function retry($result, ?\Exception $e): bool
     {
@@ -282,6 +331,8 @@ class ExponentialBackoff
 
     /**
      * @throws Exception
+     * @deprecated Kept, but its signature changes in 4.0: it takes the wait in microseconds as a parameter and returns
+     * nothing.
      */
     protected function sleep(): self
     {

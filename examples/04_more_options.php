@@ -44,8 +44,8 @@ $backoff = new ExponentialBackoff(new ExceptionBasedCondition(Exception::class))
 $backoff = new ExponentialBackoff($condition);
 
 $backoff
-    ->setType(ExponentialBackoff::TYPE_SECONDS)
-    ->setType(ExponentialBackoff::TYPE_MICROSECONDS)
+    ->setType(ExponentialBackoff::TYPE_SECONDS)      // Deprecated; see "Upgrading to 4.0" in README.md.
+    ->setType(ExponentialBackoff::TYPE_MICROSECONDS) // Deprecated; see "Upgrading to 4.0" in README.md.
     ->setMaxAttempts(3)
     ->setMaxAttempts(4)
 ;

@@ -51,6 +51,9 @@ class ExceptionBasedCondition extends AbstractRetryCondition
 
     /**
      * {@inheritdoc}
+     *
+     * @deprecated Renamed to shouldRetry() in 4.0, with its meaning inverted.
+     * @see AbstractRetryCondition::met()
      */
     public function met($result, ?BaseException $e): bool
     {
@@ -68,7 +71,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
     }
 
     /**
-     * @deprecated This will be removed in the next major version. Use {@see self::getExceptions} instead.
+     * @deprecated Removed in 4.0. Use {@see self::getExceptions} instead.
      * @see ExceptionBasedCondition::getExceptions()
      */
     public function getException(): string
@@ -90,7 +93,7 @@ class ExceptionBasedCondition extends AbstractRetryCondition
 
     /**
      * @throws Exception
-     * @deprecated This will be removed in the next major version. Use {@see self::setExceptions} instead.
+     * @deprecated Removed in 4.0. Use {@see self::setExceptions} instead.
      * @see ExceptionBasedCondition::setExceptions()
      */
     public function setException(string $exception): self

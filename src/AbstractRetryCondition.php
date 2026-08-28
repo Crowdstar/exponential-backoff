@@ -42,8 +42,14 @@ abstract class AbstractRetryCondition
     /**
      * Don't retry if conditions met.
      *
+     * BEWARE WHEN MOVING TO 4.0: this method is renamed to shouldRetry() there, and the question it asks is inverted.
+     * Returning TRUE means "try again" in 4.0, where here it means "stop". A condition carried across with nothing
+     * changed but the method name therefore retries in exactly the cases it used to stop in, and nothing catches that
+     * for you -- the signature is compatible either way round. Negate the body along with the rename.
+     *
      * @param mixed $result
      * @return bool return TRUE if conditions met, otherwise return FALSE.
+     * @deprecated Renamed to shouldRetry() in 4.0, with its meaning inverted. See the note above before upgrading.
      * @see ExponentialBackoff::retry()
      */
     abstract public function met($result, ?Exception $e): bool;
