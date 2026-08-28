@@ -38,8 +38,16 @@ jobs:
       - name: Run Unit Tests without Swoole
         run: ./vendor/bin/counit
 
+      # Without this, a Swoole that quietly failed to load would make the two steps below duplicates of the one above.
+      - name: Verify Swoole is loadable
+        run: php -d extension=swoole --ri swoole
+
       - name: Run Unit Tests with Swoole
         run: php -d extension=swoole ./vendor/bin/counit
+
+      # counit runs every test inside a coroutine, which leaves the code paths taken outside one untested.
+      - name: Run Unit Tests with Swoole, outside Coroutines
+        run: php -d extension=swoole ./vendor/bin/phpunit
 
       - name: Run Syntax Checks
         run: docker run -q --rm -v "$(pwd):/project" -w /project -i jakzal/phpqa:php${{ matrix.php }} phplint examples src
