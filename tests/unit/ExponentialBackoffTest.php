@@ -25,7 +25,7 @@ use CrowdStar\Backoff\EmptyValueCondition;
 use CrowdStar\Backoff\ExceptionBasedCondition;
 use CrowdStar\Backoff\ExponentialBackoff;
 use CrowdStar\Backoff\Jitter;
-use CrowdStar\Backoff\Sapi;
+use CrowdStar\Backoff\Mode;
 use Deminy\Counit\TestCase;
 use Exception;
 
@@ -458,11 +458,11 @@ class ExponentialBackoffTest extends TestCase
     /**
      * @covers \CrowdStar\Backoff\ExponentialBackoff::setSleeper()
      */
-    public function testSleeperTakesPrecedenceOverTheSapi(): void
+    public function testSleeperTakesPrecedenceOverTheMode(): void
     {
         $slept   = 0;
         $helper  = (new Helper())->setExpectedFailedAttempts(1);
-        $backoff = (new ExponentialBackoff(new EmptyValueCondition(), Sapi::Swoole))
+        $backoff = (new ExponentialBackoff(new EmptyValueCondition(), Mode::Swoole))
             ->setSleeper(function () use (&$slept): void {
                 $slept++;
             })
@@ -474,6 +474,21 @@ class ExponentialBackoffTest extends TestCase
             'the run went through without Swoole being asked to sleep'
         );
         self::assertSame(1, $slept);
+    }
+
+    /**
+     * The mode reported has to be the one a wait would really happen in, and a sleeper is not either of the other two.
+     *
+     * @covers \CrowdStar\Backoff\ExponentialBackoff::getMode()
+     */
+    public function testSleeperIsReportedAsTheMode(): void
+    {
+        $backoff = new ExponentialBackoff(new EmptyValueCondition());
+        $without = $backoff->getMode();
+
+        self::assertNotSame(Mode::Sleeper, $without, 'nothing is doing the waiting yet');
+        self::assertSame(Mode::Sleeper, $backoff->setSleeper(Helper::doNotSleep())->getMode());
+        self::assertSame($without, $backoff->setSleeper(null)->getMode(), 'handing the waiting back restores the mode');
     }
 
     /**

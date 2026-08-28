@@ -56,10 +56,10 @@ class ExponentialBackoff
     protected Jitter $jitter = self::DEFAULT_JITTER;
 
     /**
-     * The mode the caller asked for, or NULL to work it out per wait. Never read this directly; $this->getSapi()
+     * The mode the caller asked for, or NULL to work it out per wait. Never read this directly; $this->getMode()
      * answers which mode a wait would actually happen in.
      */
-    protected ?Sapi $sapi;
+    protected ?Mode $mode;
 
     protected int $maxAttempts = self::DEFAULT_MAX_ATTEMPTS;
 
@@ -76,11 +76,11 @@ class ExponentialBackoff
      * A subclass that keeps this signature gets a working self::when(); one that does not has to override ::when() as
      * well, or set its own state up in a factory of its own.
      *
-     * @param ?Sapi $sapi how to sleep between attempts; worked out per wait when NULL.
+     * @param ?Mode $mode which primitive waits between attempts; worked out per wait when NULL.
      */
-    public function __construct(AbstractRetryCondition $retryCondition, ?Sapi $sapi = null)
+    public function __construct(AbstractRetryCondition $retryCondition, ?Mode $mode = null)
     {
-        $this->sapi = $sapi;
+        $this->mode = $mode;
 
         $this->setRetryCondition($retryCondition);
     }
@@ -93,9 +93,9 @@ class ExponentialBackoff
      * @param Closure(mixed, ?\Exception): bool $callback return TRUE from this to attempt the call again.
      * @param bool $throwable whether to throw an exception the last attempt was left with.
      */
-    public static function when(Closure $callback, bool $throwable = true, ?Sapi $sapi = null): static
+    public static function when(Closure $callback, bool $throwable = true, ?Mode $mode = null): static
     {
-        return new static(new CallbackCondition($callback, $throwable), $sapi);
+        return new static(new CallbackCondition($callback, $throwable), $mode);
     }
 
     /**
@@ -177,19 +177,34 @@ class ExponentialBackoff
     }
 
     /**
-     * Which mode a wait would happen in right now: non-blocking inside a Swoole coroutine, blocking anywhere else.
+     * How a wait would happen right now: Mode::Sleeper while a sleeper is set, Mode::Swoole inside a Swoole coroutine,
+     * Mode::Blocking anywhere else.
      *
      * This is worked out per call rather than once at construction, because the same instance may well be used both
      * inside and outside coroutines -- a service built during bootstrap and then used by coroutines, for one.
      */
-    public function getSapi(): Sapi
+    public function getMode(): Mode
     {
-        return $this->sleepsInCoroutine() ? Sapi::Swoole : Sapi::Default;
+        if ($this->sleeper !== null) {
+            return Mode::Sleeper;
+        }
+
+        if ($this->mode === Mode::Blocking) {
+            return Mode::Blocking;
+        }
+
+        // Whether Mode::Swoole was asked for or is being worked out here, it only holds inside a coroutine created by
+        // Swoole: method Coroutine::sleep() raises a Swoole\Error anywhere else, which is not something a library
+        // whose job is to absorb failures should let happen. Coroutine::getPcid() answers FALSE only outside a
+        // coroutine -- inside the outermost one it answers -1, having no parent to name.
+        $inCoroutine = extension_loaded('swoole') && (Coroutine::getPcid() !== false);
+
+        return $inCoroutine ? Mode::Swoole : Mode::Blocking;
     }
 
     /**
-     * Hand the waiting over to given callback instead of doing it here, which takes precedence over everything the
-     * Sapi cases cover. Two things this is for:
+     * Hand the waiting over to given callback instead of doing it here, which takes precedence over both modes. Two
+     * things this is for:
      *
      *   - waiting on an event loop this library knows nothing about -- ReactPHP, Amp, Revolt, a Fiber of your own;
      *   - tests, where a callback that records what it was given and returns makes a retrying test both instant and
@@ -365,30 +380,24 @@ class ExponentialBackoff
 
     protected function sleep(int $microSeconds): void
     {
-        if ($this->sleeper !== null) {
-            ($this->sleeper)($microSeconds);
+        // $this->getMode() decides this, so that what a caller is told and what actually happens cannot drift apart.
+        $mode    = $this->getMode();
+        $sleeper = $this->sleeper;
+
+        if (($mode === Mode::Sleeper) && ($sleeper !== null)) {
+            $sleeper($microSeconds);
 
             return;
         }
 
-        if ($this->sleepsInCoroutine()) {
+        if ($mode === Mode::Swoole) {
             // Minimum execution delay in Swoole is 1ms.
             Coroutine::sleep(max($microSeconds / 1_000_000, 0.001));
-        } else {
-            // ponytail: PHP implements usleep() via nanosleep(), so multi-second waits are fine here.
-            usleep($microSeconds);
-        }
-    }
 
-    protected function sleepsInCoroutine(): bool
-    {
-        if ($this->sapi === Sapi::Default) {
-            return false; // Blocking mode was asked for.
+            return;
         }
 
-        // Whether Sapi::Swoole was asked for or is being worked out here, it only holds inside a coroutine created by
-        // Swoole: method Coroutine::sleep() raises a Swoole\Error anywhere else, which is not something a library
-        // whose job is to absorb failures should let happen.
-        return extension_loaded('swoole') && (Coroutine::getPcid() !== false);
+        // ponytail: PHP implements usleep() via nanosleep(), so multi-second waits are fine here.
+        usleep($microSeconds);
     }
 }

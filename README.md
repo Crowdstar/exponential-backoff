@@ -25,8 +25,8 @@ an exponential back-off algorithm to calculate the timeout for the next request.
 
 This library allows doing exponential backoff in non-blocking mode in [Swoole](https://github.com/swoole/swoole-src).
 Coroutines are detected before every wait, so one instance can be shared by coroutines and by ordinary code alike; pass
-a _\CrowdStar\Backoff\Sapi_ case as the second constructor parameter to force blocking mode, and
-_\CrowdStar\Backoff\ExponentialBackoff::getSapi()_ tells which mode a wait would happen in.
+_\CrowdStar\Backoff\Mode::Blocking_ as the second constructor parameter to opt out, and
+_\CrowdStar\Backoff\ExponentialBackoff::getMode()_ tells which mode a wait would happen in.
 
 # Installation
 
@@ -251,6 +251,43 @@ $result = $backoff->run(
 ?>
 ```
 
+### Blocking and Non-Blocking Waits
+
+Inside a [Swoole](https://github.com/swoole/swoole-src) coroutine the wait happens with `Swoole\Coroutine::sleep()`,
+which suspends that coroutine instead of the process, so sibling coroutines keep running. Anywhere else it happens with
+`usleep()`. Which one applies is worked out before every wait, so a single instance can be built during bootstrap and
+then shared by coroutines and by ordinary code alike.
+
+Pass a _\CrowdStar\Backoff\Mode_ case as the second constructor argument to say so explicitly:
+
+```php
+<?php
+use CrowdStar\Backoff\EmptyValueCondition;
+use CrowdStar\Backoff\ExponentialBackoff;
+use CrowdStar\Backoff\Mode;
+
+// Never wait with Swoole's coroutine sleep, even inside a coroutine.
+$backoff = new ExponentialBackoff(new EmptyValueCondition(), Mode::Blocking);
+
+// Wait non-blockingly wherever a coroutine is running -- which is what happens anyway, so this is the same as
+// passing nothing at all.
+$backoff = new ExponentialBackoff(new EmptyValueCondition(), Mode::Swoole);
+
+$backoff->getMode();  // Mode::Swoole or Mode::Blocking, whichever the next wait would use.
+?>
+```
+
+There is a third case, _Mode::Sleeper_, which `getMode()` returns while a callback set with `setSleeper()` is doing the
+waiting instead — see below. It is a report, not something to pass to the constructor.
+
+_Mode::Swoole_ where no coroutine is running falls back to a blocking wait rather than raising the _Swoole\Error_ that
+`Coroutine::sleep()` produces there.
+
+One caveat on _Mode::Blocking_: it selects `usleep()`, which is not the same as a promise to block. Swoole's runtime
+hooks turn `usleep()` into a coroutine yield, and `SWOOLE_HOOK_SLEEP` is enabled by default inside
+`Swoole\Coroutine\run()`, so a wait made this way still does not block the coroutine it runs in unless those hooks are
+switched off.
+
 ### Doing the Waiting Elsewhere
 
 Method _\CrowdStar\Backoff\ExponentialBackoff::setSleeper()_ hands the waiting over to a callback of yours, which
@@ -277,7 +314,8 @@ $backoff->run(function () { return MyClass::fetchData(); });
 ?>
 ```
 
-A sleeper takes precedence over blocking and non-blocking mode both. Pass NULL to hand the waiting back.
+A sleeper takes precedence over blocking and non-blocking mode both, and `getMode()` reports _Mode::Sleeper_ while one
+is set. Pass NULL to hand the waiting back.
 
 ## 5. To Disable Exponential Backoff Temporarily
 

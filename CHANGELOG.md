@@ -14,7 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   to wait before the first retry is set with _ExponentialBackoff::setInitialTimeout()_ rather than picked from two
   hardcoded values. This is what the removed _setType()_ was standing in for, and unlike it, any timeout can now be
   expressed — a tenth of a second, or a second and a half.
-* **BREAKING** The second parameter of _ExponentialBackoff::__construct()_ is now `?CrowdStar\Backoff\Sapi` instead of
+* **BREAKING** The second parameter of _ExponentialBackoff::__construct()_ is now `?CrowdStar\Backoff\Mode` instead of
   an integer, and defaults to NULL (autodetect) instead of 0.
 * **BREAKING** Method _AbstractRetryCondition::met()_ is now _::shouldRetry()_, and it answers the opposite question:
   return TRUE to try the call again, where _met()_ returned TRUE to stop. Every other retry library phrases this the way
@@ -44,26 +44,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-* Enum _CrowdStar\Backoff\Sapi_, which callers can pass as the second constructor parameter to force blocking or
-  non-blocking mode instead of having it worked out per wait.
+* Enum _CrowdStar\Backoff\Mode_ with cases _Blocking_, _Swoole_ and _Sleeper_. The first two can be passed as the second
+  constructor parameter instead of having the mode worked out per wait, and only _Mode::Blocking_ changes anything: it
+  opts out of non-blocking waits altogether, where _Mode::Swoole_ and NULL both mean "wait non-blockingly where a
+  coroutine is running". _Mode::Sleeper_ is only ever reported by _::getMode()_, for when a callback set with
+  _::setSleeper()_ is doing the waiting.
 * Methods _ExponentialBackoff::setInitialTimeout()_, _::getInitialTimeout()_, _::setMaxTimeout()_ and
   _::getMaxTimeout()_, plus constants _ExponentialBackoff::DEFAULT_INITIAL_TIMEOUT_ and _::DEFAULT_MAX_TIMEOUT_.
-* Method _ExponentialBackoff::getSapi()_, telling which mode a wait would happen in right now.
+* Method _ExponentialBackoff::getMode()_, telling which mode a wait would happen in right now.
 * Enum _CrowdStar\Backoff\Jitter_ with cases _None_, _Full_ and _Equal_, along with methods
   _ExponentialBackoff::setJitter()_ and _::getJitter()_ and constant _ExponentialBackoff::DEFAULT_JITTER_.
 * Class _CrowdStar\Backoff\CallbackCondition_ and method _ExponentialBackoff::when()_, for deciding whether to retry
   with a closure instead of a condition class of your own:
   `ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run($c)`. The closure receives what the call
   returned and what it threw; a second argument to _::when()_ says whether an exception the last attempt was left with
-  should be thrown out, and a third takes the same _Sapi_ case the constructor does.
+  should be thrown out, and a third takes the same _Mode_ case the constructor does.
 * Methods _ExceptionBasedCondition::setIgnoredExceptions()_ and _::getIgnoredExceptions()_, listing types that are
   never retried. Ignored types take priority over the types being retried on, so "retry every _HttpException_ except
   _HttpBadRequestException_" no longer means enumerating every sibling of the one exception to be left alone. An
   ignored exception ends the run at once and is thrown out, the same as one that was never covered.
 * Method _ExponentialBackoff::setSleeper()_, handing the waiting over to a callback that receives the wait in
-  microseconds. It takes precedence over both _Sapi_ modes, and is for waiting on an event loop this library knows
-  nothing about — ReactPHP, Amp, Revolt, a Fiber of your own — or for tests, where a callback that records and returns
-  makes a retrying test instant and lets it assert the timeouts that would have been waited for.
+  microseconds. It takes precedence over both other modes, which _::getMode()_ reports as _Mode::Sleeper_, and is for
+  waiting on an event loop this library knows nothing about — ReactPHP, Amp, Revolt, a Fiber of your own — or for tests,
+  where a callback that records and returns makes a retrying test instant and lets it assert the timeouts that would
+  have been waited for.
 * Methods _ExponentialBackoff::setMaxElapsedTime()_ and _::getMaxElapsedTime()_, giving a whole run a wall-clock budget
   in microseconds on top of its maximum number of attempts. Once the next wait would not finish inside the budget it is
   not started at all, and the run hands back whatever the last attempt produced. Worth having because attempts say
@@ -74,7 +78,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 * Whether to wait in non-blocking mode is now decided per wait instead of once at construction. An instance built
   outside a coroutine — a service put together during bootstrap, say — used to block forever afterwards, even when used
-  by coroutines, which is the way it is normally wired up in a Swoole application. Passing _Sapi::Swoole_ where no
+  by coroutines, which is the way it is normally wired up in a Swoole application. Passing _Mode::Swoole_ where no
   coroutine is running no longer raises the _Swoole\Error_ it would produce either; the wait falls back to blocking.
 * One instance of _ExponentialBackoff_ can now be used by several callers at once. The attempt counter was kept on the
   object and reset at the start of every _::run()_, so a closure that called _::run()_ again on the same instance reset
@@ -100,8 +104,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   attempt counter belongs to a single run and is no longer kept on the object.
 * **BREAKING** Methods _ExceptionBasedCondition::getException()_ and _ExceptionBasedCondition::setException()_,
   deprecated since 3.0.10. Use _::getExceptions()_ and _::setExceptions()_ instead, which handle one or more types.
-* Exceptions previously thrown for an invalid backoff type or an invalid `$sapi` value. Both are now impossible, so
-  _ExponentialBackoff::__construct()_ no longer throws.
+* Exceptions previously thrown for an invalid backoff type or an invalid second constructor argument. Both are now
+  impossible, so _ExponentialBackoff::__construct()_ no longer throws.
 
 ### Migration from 3.x
 
@@ -133,10 +137,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
    retry. Method _getTimeoutSeconds()_ is gone; divide _getTimeoutMicroseconds()_ by 1000000 where seconds are wanted.
 4. If you passed the second constructor parameter, pass an enum case instead of an integer:
    ```php
-   new ExponentialBackoff($condition, 2);                               // 3.x
-   new ExponentialBackoff($condition, \CrowdStar\Backoff\Sapi::Swoole); // 4.0
+   new ExponentialBackoff($condition, 1);                                 // 3.x, SAPI_DEFAULT
+   new ExponentialBackoff($condition, \CrowdStar\Backoff\Mode::Blocking); // 4.0
+
+   new ExponentialBackoff($condition, 2);                                 // 3.x, SAPI_SWOOLE
+   new ExponentialBackoff($condition, \CrowdStar\Backoff\Mode::Swoole);   // 4.0
    ```
-   Pass NULL, or nothing at all, to keep autodetecting Swoole coroutines.
+   Pass NULL, or nothing at all, to keep autodetecting Swoole coroutines — which is also all _Mode::Swoole_ does, since
+   a non-blocking wait needs a running coroutine either way.
 5. Replace the singular exception accessors on _ExceptionBasedCondition_ with the plural ones:
    ```php
    $condition->setException(Exception::class);      // 3.x
