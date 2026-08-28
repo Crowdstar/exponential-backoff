@@ -194,12 +194,39 @@ class ExceptionBasedConditionTest extends TestCase
     }
 
     /**
+     * @return array<array<string>>
+     */
+    public static function dataSetException(): array
+    {
+        return [
+            [
+                Throwable::class,
+            ],
+            [
+                Exception::class,
+            ],
+            [
+                LogicException::class,
+            ],
+            [
+                BadFunctionCallException::class,
+            ],
+            [
+                BadMethodCallException::class,
+            ],
+            [
+                ExpectationFailedException::class, // this one requires at least 1 parameter in the constructor method.
+            ],
+        ];
+    }
+
+    /**
      * An ignored type wins over the type to retry on, which is the point: it is how a subclass gets left alone while
      * its parent keeps being retried.
      *
      * @dataProvider dataIgnoredExceptions
-     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::shouldRetry()
      * @covers \CrowdStar\Backoff\ExceptionBasedCondition::setIgnoredExceptions()
+     * @covers \CrowdStar\Backoff\ExceptionBasedCondition::shouldRetry()
      */
     public function testIgnoredExceptions(bool $expected, Exception $thrown): void
     {
@@ -262,33 +289,6 @@ class ExceptionBasedConditionTest extends TestCase
             self::assertSame('not worth retrying', $e->getMessage());
             self::assertSame(1, $attempts, 'no retry was attempted');
         }
-    }
-
-    /**
-     * @return array<array<string>>
-     */
-    public static function dataSetException(): array
-    {
-        return [
-            [
-                Throwable::class,
-            ],
-            [
-                Exception::class,
-            ],
-            [
-                LogicException::class,
-            ],
-            [
-                BadFunctionCallException::class,
-            ],
-            [
-                BadMethodCallException::class,
-            ],
-            [
-                ExpectationFailedException::class, // this one requires at least 1 parameter in the constructor method.
-            ],
-        ];
     }
 
     /**

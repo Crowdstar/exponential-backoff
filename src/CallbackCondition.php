@@ -33,8 +33,8 @@ use Exception;
 class CallbackCondition extends AbstractRetryCondition
 {
     /**
-     * @param Closure(mixed, ?Exception): bool $callback  return TRUE from this to attempt the call again.
-     * @param bool                             $throwable whether to throw an exception the last attempt was left with.
+     * @param Closure(mixed, ?Exception): bool $callback return TRUE from this to attempt the call again.
+     * @param bool $throwable whether to throw an exception the last attempt was left with.
      */
     public function __construct(
         protected readonly Closure $callback,

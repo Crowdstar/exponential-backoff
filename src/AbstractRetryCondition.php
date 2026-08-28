@@ -42,8 +42,8 @@ abstract class AbstractRetryCondition
     /**
      * Whether the attempt just made should be tried again.
      *
-     * @param mixed      $result what the closure returned, or NULL when it threw.
-     * @param ?Exception $e      what the closure threw, or NULL when it returned.
+     * @param mixed $result what the closure returned, or NULL when it threw.
+     * @param ?Exception $e what the closure threw, or NULL when it returned.
      * @return bool return TRUE to attempt the call again, FALSE to stop and take what the last attempt produced.
      * @see ExponentialBackoff::retry()
      */

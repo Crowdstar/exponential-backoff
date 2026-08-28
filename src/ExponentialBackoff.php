@@ -85,8 +85,8 @@ class ExponentialBackoff
      *
      *     ExponentialBackoff::when(fn (mixed $result): bool => empty($result))->run($c);
      *
-     * @param Closure(mixed, ?\Exception): bool $callback  return TRUE from this to attempt the call again.
-     * @param bool                              $throwable whether to throw an exception the last attempt was left with.
+     * @param Closure(mixed, ?\Exception): bool $callback return TRUE from this to attempt the call again.
+     * @param bool $throwable whether to throw an exception the last attempt was left with.
      */
     public static function when(Closure $callback, bool $throwable = true, ?Sapi $sapi = null): self
     {
@@ -278,8 +278,8 @@ class ExponentialBackoff
      * Get the next timeout in microseconds.
      *
      * The timeout doubles on every iteration until it reaches $maxTimeout, where it stays. Iterations below 1 are
-     * treated as the first one. Randomness is applied to the capped timeout, so a Jitter::None timeout never exceeds
-     * $maxTimeout while a Jitter::Equal one may exceed it by nothing at all and a Jitter::Full one stays below it.
+     * treated as the first one. Randomness is applied to the capped timeout, so no timeout ever comes back longer than
+     * $maxTimeout, whichever Jitter is in use.
      */
     public static function getTimeoutMicroseconds(
         int $iteration,
@@ -291,9 +291,10 @@ class ExponentialBackoff
         $maxTimeout = min(max(0, $maxTimeout), intdiv(PHP_INT_MAX, 2));
         $timeout    = min(max(0, $initialTimeout), $maxTimeout);
 
-        for ($i = 1; $i < $iteration; $i++) {
-            // Doubling in a loop that stops at the cap, instead of shifting by ($iteration - 1), keeps the timeout
-            // within integer range no matter how many attempts are configured.
+        // Doubling in a loop that stops at the cap, instead of shifting by ($iteration - 1), keeps the timeout within
+        // integer range no matter how many attempts are configured. A timeout of nothing is left alone: doubling it
+        // would not move it, and looping until $iteration ran out could take years of that.
+        for ($i = 1; ($i < $iteration) && ($timeout > 0); $i++) {
             if ($timeout > intdiv($maxTimeout, 2)) {
                 $timeout = $maxTimeout;
                 break;

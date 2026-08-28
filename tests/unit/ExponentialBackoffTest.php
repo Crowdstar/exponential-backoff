@@ -290,16 +290,16 @@ class ExponentialBackoffTest extends TestCase
     public static function dataMaxTimeout(): array
     {
         return [
-            'iteration below 1 is treated as the first one' => [0],
-            'first iteration, below the cap'                => [1],
-            'second iteration, below the cap'               => [2],
-            'fourth iteration, reaching the cap'            => [4],
-            'tenth iteration, capped'                       => [10],
-            'iteration 45, the last one that used to work'  => [45],
-            'iteration 46, used to throw a TypeError'       => [46],
-            'iteration 64, used to throw a TypeError'       => [64],
+            'iteration below 1 is treated as the first one'  => [0],
+            'first iteration, below the cap'                 => [1],
+            'second iteration, below the cap'                => [2],
+            'fourth iteration, reaching the cap'             => [4],
+            'tenth iteration, capped'                        => [10],
+            'iteration 45, the last one that used to work'   => [45],
+            'iteration 46, used to throw a TypeError'        => [46],
+            'iteration 64, used to throw a TypeError'        => [64],
             'iteration 65, used to return no timeout at all' => [65],
-            'iteration 200, way beyond the integer range'   => [200],
+            'iteration 200, way beyond the integer range'    => [200],
         ];
     }
 
@@ -485,7 +485,7 @@ class ExponentialBackoffTest extends TestCase
         $backoff = (new ExponentialBackoff(new EmptyValueCondition()))
             ->setJitter(Jitter::None)
             ->setInitialTimeout(200_000)
-            ->setSleeper(fn (): null => null)
+            ->setSleeper(Helper::doNotSleep())
             ->setSleeper(null)
         ;
 
