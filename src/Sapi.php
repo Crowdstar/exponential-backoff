@@ -21,11 +21,9 @@ namespace CrowdStar\Backoff;
 
 /**
  * How to sleep between attempts: blocking (plain PHP) or non-blocking (inside a Swoole coroutine).
- *
- * Values match the ExponentialBackoff::SAPI_* constants used before version 4.0.
  */
-enum Sapi: int
+enum Sapi
 {
-    case Default = 1;
-    case Swoole  = 2;
+    case Default;
+    case Swoole;
 }
